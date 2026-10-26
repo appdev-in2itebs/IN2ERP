@@ -1,0 +1,124 @@
+/* ==========================================================================
+   In2IT EBS brand overrides for the AURA Premium UI design system.
+   Load AFTER aura-design-system/foundations/tokens.css. Everything else in
+   AURA (radius, spacing, motion, glass, components) stays unchanged.
+   Palette = the eight official colours only (brand/palette.json).
+   ========================================================================== */
+:root {
+  /* Fonts: Newsreader for display (brand headline face), IBM Plex Sans for everything else.
+     The logo wordmark itself uses Poppins (see preview/splash-in2it.html). */
+  --aura-font-display: "Newsreader", "Cambria", Georgia, serif;
+  --aura-font-sans: "IBM Plex Sans", "Calibri", "Arial", system-ui, sans-serif;
+
+  /* Brand hue = Navy. Header gradient navy -> deeper navy. */
+  --aura-brand-900: #0B1328;
+  --aura-brand-700: #0F1931;
+  --aura-brand-600: #121E3B;
+  --aura-brand-400: #3F75A3;
+  --aura-brand-100: #E7EFF6;
+
+  /* CTA = Accent Blue (the brand forbids orange). */
+  --aura-cta-600: #335F86;
+  --aura-cta-500: #3F75A3;
+  --aura-cta-400: #5A8DB8;
+
+  /* Glossy tiles = Accent Blue with Light Blue highlight. */
+  --aura-tile-700: #2B5479;
+  --aura-tile-500: #3F75A3;
+  --aura-tile-300: #94B8D0;
+  --aura-tile-100: #E3EEF7;
+
+  /* Semantic: RAG colours are the only permitted exception to the palette. */
+  --aura-success: #2E7D4F;
+  --aura-warning: #B9770E;
+  --aura-danger: #C0392B;
+  --aura-info: #3F75A3;
+  --aura-mint: #DDF0E4;
+  --aura-mint-ink: #2E7D4F;
+  --aura-lilac: #A3CBE6;        /* "New" badges use Pale Blue instead of lilac */
+  --aura-lilac-ink: #121E3B;
+  --aura-sky: #EEF4F9;
+  --aura-gold: #C1BC9C;         /* Sand: dividers only; coins/rewards use Light Blue */
+
+  /* Canvas and ink */
+  --aura-canvas: #F7F8FA;
+  --aura-surface: #FFFFFF;
+  --aura-surface-2: #EEF1F5;
+  --aura-ink-900: #121E3B;
+  --aura-ink-700: #2A3550;
+  --aura-ink-500: #5A6478;
+  --aura-ink-300: #B7BECB;
+  --aura-line: rgba(18, 30, 59, 0.08);
+
+  /* Shadows tinted navy */
+  --aura-shadow-sm: 0 2px 8px -2px rgba(18, 30, 59, 0.08);
+  --aura-shadow-md: 0 10px 30px -12px rgba(18, 30, 59, 0.16);
+  --aura-shadow-lg: 0 24px 60px -20px rgba(18, 30, 59, 0.24);
+  --aura-shadow-tile: 0 12px 32px -8px rgba(63, 117, 163, 0.45);
+  --aura-shadow-cta: 0 14px 32px -10px rgba(63, 117, 163, 0.55);
+  --aura-halo-tile: 0 0 0 8px rgba(163, 203, 230, 0.45);
+  --aura-focus-ring: 0 0 0 3px rgba(63, 117, 163, 0.4);
+
+  /* Gradients rebuilt from the palette */
+  --aura-gradient-header: linear-gradient(180deg, #1A2B52 0%, #121E3B 55%, #0B1328 100%);
+  --aura-gradient-cta: linear-gradient(180deg, #5A8DB8 0%, #3F75A3 100%);
+  --aura-gradient-tile: radial-gradient(120% 100% at 30% 15%, #94B8D0 0%, #3F75A3 45%, #2B5479 100%);
+  --aura-gradient-sky: linear-gradient(180deg, #DCEAF4 0%, #EEF4F9 60%, #F7F8FA 100%);
+  --aura-gradient-aurora: linear-gradient(135deg, #A3CBE6 0%, #3F75A3 50%, #121E3B 100%);
+  --aura-gradient-gold: linear-gradient(135deg, #A3CBE6 0%, #94B8D0 100%);
+  --aura-gradient-festive: linear-gradient(180deg, #1A2B52 0%, #0B1328 100%);
+
+  /* Logo-specific */
+  --in2it-navy: #121E3B;
+  --in2it-accent: #3F75A3;
+  --in2it-light: #94B8D0;
+  --in2it-pale: #A3CBE6;
+  --in2it-grey: #5A6478;
+  --in2it-offwhite: #F7F8FA;
+  --in2it-sand: #C1BC9C;
+  --in2it-font-logo: "Poppins", "Montserrat", "IBM Plex Sans", sans-serif;
+}
+
+:root[data-theme="dark"], :root:not([data-theme="light"]) {
+  /* Dark mode stays within the palette: navy canvas, white text. */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --aura-canvas: #0B1328;
+    --aura-surface: #121E3B;
+    --aura-surface-2: #1A2B52;
+    --aura-ink-900: #FFFFFF;
+    --aura-ink-700: #DCE4EE;
+    --aura-ink-500: #94B8D0;
+    --aura-ink-300: #3F5478;
+    --aura-line: rgba(255, 255, 255, 0.08);
+    --aura-glass: rgba(18, 30, 59, 0.6);
+    --aura-glass-strong: rgba(18, 30, 59, 0.85);
+    --aura-glass-border: rgba(255, 255, 255, 0.10);
+    --aura-sky: rgba(63, 117, 163, 0.18);
+    --aura-mint: rgba(46, 125, 79, 0.25);
+    --aura-mint-ink: #9FD9B5;
+    --aura-lilac: rgba(163, 203, 230, 0.25);
+    --aura-lilac-ink: #A3CBE6;
+    --aura-gradient-sky: linear-gradient(180deg, #16244A 0%, #0F1931 60%, #0B1328 100%);
+  }
+}
+:root[data-theme="dark"] {
+  --aura-canvas: #0B1328;
+  --aura-surface: #121E3B;
+  --aura-surface-2: #1A2B52;
+  --aura-ink-900: #FFFFFF;
+  --aura-ink-700: #DCE4EE;
+  --aura-ink-500: #94B8D0;
+  --aura-ink-300: #3F5478;
+  --aura-line: rgba(255, 255, 255, 0.08);
+  --aura-glass: rgba(18, 30, 59, 0.6);
+  --aura-glass-strong: rgba(18, 30, 59, 0.85);
+  --aura-glass-border: rgba(255, 255, 255, 0.10);
+  --aura-sky: rgba(63, 117, 163, 0.18);
+  --aura-mint: rgba(46, 125, 79, 0.25);
+  --aura-mint-ink: #9FD9B5;
+  --aura-lilac: rgba(163, 203, 230, 0.25);
+  --aura-lilac-ink: #A3CBE6;
+  --aura-gradient-sky: linear-gradient(180deg, #16244A 0%, #0F1931 60%, #0B1328 100%);
+}

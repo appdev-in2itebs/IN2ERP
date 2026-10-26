@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>In2IT EBS Splash</title>
+<meta name="description" content="In2IT EBS post-login brand splash, self-contained (official logo embedded). Converge: the mark splits into four comets that orbit while the wordmark reveals, then re-forms. Wash: blue colour wave through the letters, shards pop like petals." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;0,700;1,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/*__AURA_TOKENS__*/
+/*__IN2IT_TOKENS__*/
+
+html, body { margin: 0; min-height: 100%; }
+body { background: var(--aura-canvas); padding: 24px 16px 48px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.hero { text-align: center; max-width: 720px; }
+.hero h1 { font: 700 40px/44px var(--aura-font-display); letter-spacing: -0.02em; margin: 0 0 8px; color: var(--in2it-navy); }
+.hero h1 em { font-style: italic; color: var(--in2it-accent); }
+.hero p { margin: 0; color: var(--in2it-grey); font: var(--aura-text-body-md); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px; border-radius: var(--aura-r-3xl); max-width: 760px; }
+.toolbar button { border: 1px solid var(--aura-line); background: var(--aura-surface); color: var(--aura-ink-700); font: var(--aura-text-label-md); padding: 10px 16px; border-radius: var(--aura-r-pill); cursor: pointer; box-shadow: var(--aura-shadow-sm); transition: transform var(--aura-dur-fast) var(--aura-ease-out-expo), background var(--aura-dur-fast), color var(--aura-dur-fast); }
+.toolbar button:hover { transform: translateY(var(--aura-hover-lift)); }
+.toolbar button:active { transform: scale(var(--aura-press-scale)); }
+.toolbar button[aria-pressed="true"] { background: var(--in2it-navy); color: #fff; border-color: transparent; }
+.toolbar .sep { width: 100%; height: 0; }
+
+.phone { width: 390px; height: 844px; max-width: 100%; border-radius: 48px; overflow: hidden; position: relative; background: var(--aura-canvas); box-shadow: 0 40px 100px -30px rgba(18,30,59,0.45), 0 0 0 10px #121E3B, 0 0 0 12px #2A3550; }
+
+/* ======================= SPLASH LAYER ======================= */
+.splash { --trail: var(--in2it-light); --glowc: var(--in2it-pale); position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: var(--aura-surface); transition: opacity 420ms var(--aura-ease-out-expo); }
+.splash.brand { --trail: #94B8D0; --glowc: #3F75A3; background: var(--aura-gradient-header); }
+.splash.leave { opacity: 0; pointer-events: none; }
+.stack { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: transform 420ms var(--aura-ease-out-expo), opacity 300ms; }
+.splash.leave .stack { transform: scale(1.12); opacity: 0; }
+
+.tagline-status { font: var(--aura-text-label-md); color: var(--in2it-grey); opacity: 0; transform: translateY(8px); display: flex; align-items: center; gap: 8px; }
+.splash.brand .tagline-status, :root[data-theme="dark"] .tagline-status { color: rgba(255,255,255,0.7); }
+.dots { display: inline-flex; gap: 4px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.35; }
+.play .tagline-status { animation: rise 420ms var(--aura-ease-out-expo) var(--status-delay, 2300ms) forwards; }
+.play .dots i { animation: dot 1.2s ease-in-out infinite; }
+.play .dots i:nth-child(2) { animation-delay: 0.2s; } .play .dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes rise { to { opacity: 1; transform: none; } }
+@keyframes dot { 0%,100% { opacity: 0.35; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+
+/* ---- stage 400 x 220; .logo holds the sliced official PNG and is the containing block for the flight paths ---- */
+.stage { position: relative; width: 400px; height: 220px; max-width: 100%; }
+.logo { position: absolute; left: 0; top: 0; width: 400px; height: 220px; transform: translateX(var(--shift, 0px)); }
+.piece { position: absolute; background-repeat: no-repeat; }
+.glow { position: absolute; border-radius: 50%; background: radial-gradient(circle, var(--glowc) 0%, transparent 65%); opacity: 0; filter: blur(10px); pointer-events: none; }
+.play .glow { animation: glow-in 800ms ease-out var(--glow-delay, 2000ms) forwards, glow-loop 2.6s ease-in-out 2.9s infinite; }
+@keyframes glow-in { to { opacity: 0.55; } }
+@keyframes glow-loop { 0%,100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.85; transform: scale(1.1); } }
+.fx { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.trail { fill: none; stroke: var(--trail); stroke-width: 2.5; stroke-linecap: round; opacity: 0; stroke-dasharray: 120 1000; stroke-dashoffset: 120; }
+.tag.piece { opacity: 0; }
+.play .tag.piece { animation: tag-in 700ms var(--aura-ease-out-expo) var(--tag-delay, 2100ms) forwards; }
+@keyframes tag-in { from { opacity: 0; transform: translateY(4px) scaleX(1.08); } to { opacity: 1; transform: none; } }
+
+/* ======================= VARIANT A: CONVERGE (mirrors Keka's post-login reveal) =======================
+   Keka: the "k" sits alone, its sparks launch as comets, the other letters reveal while the word
+   re-centres, the comets land back as the sparks.
+   In2IT: the mark sits alone (centred), its four shards launch as comets on orbits around the
+   word with trails, the letters reveal left to right while the logo slides to re-centre, the shards
+   land back and re-form the mark. */
+.play[data-variant="converge"] .logo { animation: shift 700ms var(--aura-ease-out-expo) 500ms forwards; }
+@keyframes shift { to { transform: translateX(0); } }
+[data-variant="converge"] .letter { opacity: 0; transform: translateX(-6px) scale(0.92); transform-origin: left center; }
+.play[data-variant="converge"] .letter { animation: reveal 380ms var(--aura-ease-out-expo) forwards; animation-delay: calc(520ms + var(--i) * 110ms); }
+@keyframes reveal { to { opacity: 1; transform: none; } }
+[data-variant="converge"] .shard { offset-rotate: 0deg; offset-distance: 0%; }
+.play[data-variant="converge"] .shard { animation: orbit var(--dur) cubic-bezier(0.45,0,0.2,1) var(--delay) forwards, land 480ms var(--aura-ease-spring) var(--land) forwards; }
+@keyframes orbit { 0% { offset-distance: 0%; rotate: 0deg; } 100% { offset-distance: 100%; rotate: 720deg; } }
+@keyframes land { 0% { scale: 1; } 40% { scale: 1.22; } 100% { scale: 1; } }
+.play[data-variant="converge"] .trail { animation: sweep var(--dur) cubic-bezier(0.45,0,0.2,1) var(--delay) forwards; }
+@keyframes sweep { 0% { stroke-dashoffset: 120; opacity: 0.45; } 78% { opacity: 0.45; } 100% { stroke-dashoffset: -880; opacity: 0; } }
+[data-variant="converge"] { --tag-delay: 2100ms; --status-delay: 2300ms; --glow-delay: 2000ms; }
+
+/* ======================= VARIANT B: WASH (mirrors Keka's home-page loader) =======================
+   Keka: the wordmark appears with a colour wash sweeping through the letters, then four coloured
+   petals fan out one by one from the last letter and flicker while loading.
+   In2IT: letters rise from a blur while a tint masked to each real glyph sweeps Pale -> Light ->
+   Accent Blue and fades to the navy pixels; the four shards pop out of their corners one by one with
+   a ripple ring; while loading a glint sweeps across the wordmark, the shards shimmer in sequence and
+   a thin accent line runs under the tagline. */
+[data-variant="wash"] .letter { opacity: 0; }
+.play[data-variant="wash"] .letter { animation: wash-in 900ms cubic-bezier(0.16,1,0.3,1) forwards; animation-delay: calc(100ms + var(--i) * 70ms); }
+@keyframes wash-in { 0% { opacity: 0; transform: translateY(14px) scale(1.08); filter: blur(8px); } 35% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+.letter .tint { position: absolute; inset: 0; opacity: 0; }
+.play[data-variant="wash"] .letter .tint { animation: tint 1000ms ease-in-out forwards; animation-delay: calc(100ms + var(--i) * 70ms); }
+@keyframes tint { 0% { opacity: 0; background: var(--in2it-pale); } 25% { opacity: 1; background: var(--in2it-pale); } 55% { opacity: 1; background: var(--in2it-light); } 80% { opacity: 0.75; background: var(--in2it-accent); } 100% { opacity: 0; background: var(--in2it-accent); } }
+[data-variant="wash"] .shard { scale: 0; }
+.play[data-variant="wash"] .shard { animation: pop 620ms var(--aura-ease-spring) var(--pop) forwards, shimmer 2.4s ease-in-out var(--shim) infinite; }
+@keyframes pop { 0% { scale: 0; } 55% { scale: 1.2; } 100% { scale: 1; } }
+@keyframes shimmer { 0%,100% { opacity: 1; filter: brightness(1); } 50% { opacity: 0.7; filter: brightness(1.25); } }
+.ripple { position: absolute; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--trail); opacity: 0; transform: translate(-50%, -50%) scale(0.2); pointer-events: none; }
+.play[data-variant="wash"] .ripple { animation: ripple 800ms cubic-bezier(0.16,1,0.3,1) var(--pop) forwards; }
+@keyframes ripple { 0% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.2); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(3.2); } }
+.sheen { position: absolute; opacity: 0; pointer-events: none; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.75) 50%, transparent 65%); background-size: 300% 100%; background-position: 100% 0; }
+.splash.brand .sheen { background-image: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%); }
+.play[data-variant="wash"] .sheen { animation: sheen 2.6s cubic-bezier(0.65,0,0.35,1) 1900ms infinite; }
+@keyframes sheen { 0% { opacity: 1; background-position: 100% 0; } 45% { opacity: 1; background-position: 0% 0; } 46%,100% { opacity: 0; background-position: 0% 0; } }
+.loadline { position: absolute; height: 2px; border-radius: 2px; background: var(--in2it-accent); opacity: 0; width: 34%; }
+.splash.brand .loadline { background: var(--in2it-pale); }
+.play[data-variant="wash"] .loadline { animation: loadline 1.6s cubic-bezier(0.65,0,0.35,1) 1900ms infinite; }
+@keyframes loadline { 0% { opacity: 0; transform: translateX(-30%); } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(260%); } }
+[data-variant="wash"] { --tag-delay: 1500ms; --status-delay: 1800ms; --glow-delay: 300ms; }
+[data-variant="wash"] .trail { display: none; }
+[data-variant="converge"] .ripple, [data-variant="converge"] .sheen, [data-variant="converge"] .loadline { display: none; }
+
+/* ======================= APP (revealed under the splash) ======================= */
+.app { position: absolute; inset: 0; overflow: hidden; }
+.app .header { background: var(--aura-gradient-header); color: #fff; padding: 52px 20px 48px; position: relative; }
+.app .header::before { content: ""; position: absolute; inset: 0; background: var(--aura-gradient-header-vignette); }
+.app .header img { position: relative; height: 22px; display: block; margin-bottom: 18px; }
+.app .header h2 { position: relative; margin: 0; font: 600 26px/30px var(--aura-font-display); letter-spacing: -0.01em; }
+.app .header h2 em { font-style: italic; color: var(--in2it-pale); }
+.app .header p { position: relative; margin: 6px 0 0; font: var(--aura-text-body-md); opacity: 0.8; }
+.app .avatar { position: absolute; right: 20px; top: 92px; width: 44px; height: 44px; border-radius: 50%; background: var(--in2it-pale); box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+.app .panel { position: relative; margin-top: -28px; background: var(--aura-surface); border-radius: 28px 28px 0 0; padding: 24px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.app .card { background: var(--aura-surface); border-radius: var(--aura-r-3xl); box-shadow: 0 1px 0 var(--aura-line), var(--aura-shadow-md); padding: 18px 20px; min-height: 112px; }
+.app .card .ov { font: var(--aura-text-overline); letter-spacing: var(--aura-tracking-overline); text-transform: uppercase; color: var(--in2it-accent); }
+.app .card .val { font: 600 26px/30px var(--aura-font-display); margin-top: 10px; color: var(--aura-ink-900); }
+.app .card .delta { display: inline-block; margin-top: 8px; font: 600 12px/16px var(--aura-font-sans); background: var(--aura-mint); color: var(--aura-mint-ink); padding: 3px 8px; border-radius: 10px; }
+.app .card.wide { grid-column: span 2; display: flex; align-items: center; gap: 16px; }
+.app .clock { width: 72px; height: 72px; border-radius: 50%; background: var(--aura-gradient-tile); box-shadow: var(--aura-shadow-tile), var(--aura-halo-tile); display: grid; place-items: center; color: #fff; font: 600 13px/1 var(--aura-font-sans); flex: none; position: relative; }
+.app .clock::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--aura-gradient-tile-gloss); }
+.app .clock span { position: relative; }
+.app .card h3 { margin: 0; font: var(--aura-text-title-md); color: var(--aura-ink-900); }
+.app .card small { color: var(--aura-ink-500); font: var(--aura-text-label-md); }
+.app .enter { opacity: 0; transform: translateY(16px); }
+.app.show .enter { animation: rise 420ms var(--aura-ease-out-expo) forwards; }
+.app.show .enter:nth-child(1) { animation-delay: 0ms; } .app.show .enter:nth-child(2) { animation-delay: 40ms; } .app.show .enter:nth-child(3) { animation-delay: 80ms; }
+.app.show .enter:nth-child(4) { animation-delay: 120ms; } .app.show .enter:nth-child(5) { animation-delay: 160ms; } .app.show .enter:nth-child(6) { animation-delay: 200ms; }
+.app .header.enter { transform: none; }
+
+.notes { max-width: 720px; color: var(--in2it-grey); font: var(--aura-text-body-md); text-align: center; }
+.notes code { font: 13px/1 var(--aura-font-mono); background: var(--aura-surface-2); padding: 2px 6px; border-radius: 6px; color: var(--aura-ink-700); }
+@media (max-width: 420px) { .phone { height: 92vh; border-radius: 32px; } .stage { transform: scale(0.88); } }
+@media (prefers-reduced-motion: reduce) {
+  .play .shard, .play .trail, .play .logo { animation: none !important; opacity: 1; offset-distance: 0%; rotate: 0deg; scale: 1; transform: none; }
+  .play .letter, .play .tag.piece { animation-duration: 150ms !important; animation-delay: 0ms !important; }
+  .play .letter .tint, .play .sheen, .play .loadline, .play .ripple { animation: none !important; }
+}
+</style>
+</head>
+<body class="aura">
+<div class="hero"><h1>In2IT EBS <em>splash</em></h1><p>Post-login brand moment, self-contained (official logo embedded). Converge: the mark sits alone, splits into four comets that orbit with trails while the wordmark reveals and the logo re-centres, then re-forms. Wash: a blue wave runs through the real letters and the shards pop out like petals.</p></div>
+<div class="toolbar aura-glass">
+  <button id="replay">Replay</button>
+  <button class="var" data-variant="converge" aria-pressed="true">Converge</button>
+  <button class="var" data-variant="wash" aria-pressed="false">Wash</button>
+  <button id="hold" aria-pressed="false">Hold on loop</button>
+  <button id="theme">Dark mode</button>
+  <span class="sep"></span>
+  <button id="white" aria-pressed="true">White background</button>
+  <button id="brand" aria-pressed="false">Navy background</button>
+</div>
+
+<div class="phone">
+  <div class="app" id="app">
+    <div class="header enter"><img id="hdr-logo" alt="In2IT EBS" /><h2>Good morning, <em>Elisaya</em></h2><p>Wednesday, 8 Oct · 3 things need you</p><span class="avatar"></span></div>
+    <div class="panel">
+      <div class="card wide enter"><span class="clock"><span>CLOCK<br/>IN</span></span><div><h3>You're not clocked in</h3><small>Shift 9:30 - 18:30 · Hybrid</small></div></div>
+      <div class="card enter"><div class="ov">Leave balance</div><div class="val">14.5</div><span class="delta">+1.5 accrued</span></div>
+      <div class="card enter"><div class="ov">Hours this week</div><div class="val">31h 20m</div><span class="delta">On track</span></div>
+      <div class="card enter"><div class="ov">Inbox</div><div class="val">3</div><span class="delta" style="background:var(--aura-lilac);color:var(--aura-lilac-ink)">2 approvals</span></div>
+      <div class="card enter"><div class="ov">Next holiday</div><div class="val">24 Dec</div><span class="delta">in 77 days</span></div>
+    </div>
+  </div>
+
+  <div class="splash" id="splash" data-variant="converge">
+    <div class="stack">
+      <div class="stage" id="stage">
+        <span class="glow" id="glow"></span>
+        <div class="logo" id="logo"></div>
+        <svg class="fx" id="fx" viewBox="0 0 400 220" aria-hidden="true"></svg>
+      </div>
+      <div class="tagline-status">Signing you in <span class="dots"><i></i><i></i><i></i></span></div>
+    </div>
+  </div>
+</div>
+
+<p class="notes">The logo is never redrawn: every piece is a crop of the official logo file (embedded in this page) positioned with <code>background-position</code>. Open this file anywhere - no other files are needed. Motion spec: <code>SKILL.md</code> section 4.</p>
+
+<script>
+(function () {
+  /* ---------- official logo files, embedded ---------- */
+  var NAVY_SRC = 'data:image/png;base64,__NAVY_B64__';
+  var PALE_SRC = 'data:image/png;base64,__PALE_B64__';   /* logo-paleblue.png at 1/3 scale (1364x425) */
+  /* slice tables measured on the original files; k = scale of the embedded copy vs. the measured file */
+  var LOGOS = {
+    navy: { src: NAVY_SRC, W: 1809, H: 421, kx: 1, ky: 1, bbox: [20, 20, 1788, 400],
+      mark: [20, 20, 401, 400], wordRows: [59, 290], tagRows: [337, 373], tagCols: [483, 1636],
+      letters: [[483, 523], [559, 720], [741, 902], [926, 966], [987, 1158], [1247, 1400], [1424, 1600], [1608, 1788]] },
+    pale: { src: PALE_SRC, W: 4092, H: 1274, kx: 1364 / 4092, ky: 425 / 1274, bbox: [0, 194, 4091, 1079],
+      mark: [0, 194, 883, 1079], wordRows: [288, 823], tagRows: [931, 1017], tagCols: [1071, 3739],
+      letters: [[1070, 1164], [1247, 1621], [1667, 2041], [2095, 2190], [2235, 2634], [2836, 3192], [3247, 3655], [3674, 4091]] }
+  };
+  /* Each cell of the 2x2 mark holds the triangle (cell top-left, cell top-right, cell bottom-right). */
+  var SHARDS = [
+    { k: 'tl', clip: 'polygon(0 0, 50% 0, 50% 50%)',          centroid: [0.333, 0.167], corner: '50% 0%' },
+    { k: 'tr', clip: 'polygon(50% 0, 100% 0, 100% 50%)',      centroid: [0.833, 0.167], corner: '100% 0%' },
+    { k: 'bl', clip: 'polygon(0 50%, 50% 50%, 50% 100%)',     centroid: [0.333, 0.667], corner: '50% 50%' },
+    { k: 'br', clip: 'polygon(50% 50%, 100% 50%, 100% 100%)', centroid: [0.833, 0.667], corner: '100% 50%' }
+  ];
+  /* Orbits in logo coordinates (0..400 x 0..220). START/END are replaced by the shard's own centroid,
+     so each shard launches from the mark, loops around the wordmark and lands back where it began. */
+  var FLIGHTS = {
+    tl: { d: 'M START C MX-70 MY-95, 330 MY-110, 385 MY-25 S 240 MY+45, END', dur: 1500, delay: 300, land: 1800, pop: 950,  shim: 2200 },
+    tr: { d: 'M START C MX+30 MY+110, 300 MY+125, 395 MY+35 S 330 MY-80, END', dur: 1400, delay: 380, land: 1780, pop: 1070, shim: 2350 },
+    bl: { d: 'M START C MX-95 MY+15, MX-70 MY+120, 210 MY+110 S 160 MY-85, END', dur: 1550, delay: 460, land: 2010, pop: 1310, shim: 2650 },
+    br: { d: 'M START C 150 MY-105, 370 MY-85, 405 MY+15 S 210 MY+95, END',     dur: 1450, delay: 540, land: 1990, pop: 1190, shim: 2500 }
+  };
+  var LOGO_WIDTH = 330, LOGO_LEFT = 35, LOGO_TOP = 75;
+
+  var root = document.documentElement, splash = document.getElementById('splash'), app = document.getElementById('app');
+  var logoEl = document.getElementById('logo'), fx = document.getElementById('fx'), glow = document.getElementById('glow');
+  document.getElementById('hdr-logo').src = PALE_SRC;
+
+  function build(key) {
+    var L = LOGOS[key], s = LOGO_WIDTH / (L.bbox[2] - L.bbox[0] + 1), bx = L.bbox[0], by = L.bbox[1];
+    var sx = s * L.kx, sy = s * L.ky;  /* px per embedded-image pixel, x and y */
+    var bg = 'url(' + L.src + ')', bgSize = (L.W * sx) + 'px ' + (L.H * sy) + 'px';
+    logoEl.innerHTML = ''; fx.innerHTML = '';
+    function piece(x0, y0, x1, y1, cls) {
+      var el = document.createElement('div'); el.className = 'piece ' + cls;
+      el.style.left = (LOGO_LEFT + (x0 - bx) * s) + 'px'; el.style.top = (LOGO_TOP + (y0 - by) * s) + 'px';
+      el.style.width = ((x1 - x0 + 1) * s) + 'px'; el.style.height = ((y1 - y0 + 1) * s) + 'px';
+      el.style.backgroundImage = bg; el.style.backgroundSize = bgSize;
+      el.style.backgroundPosition = (-x0 * s) + 'px ' + (-y0 * s) + 'px';
+      logoEl.appendChild(el); return el;
+    }
+    L.letters.forEach(function (c, i) {
+      var el = piece(c[0], L.wordRows[0], c[1], L.wordRows[1], 'letter'); el.style.setProperty('--i', i);
+      var t = document.createElement('span'); t.className = 'tint';
+      var mp = (-c[0] * s) + 'px ' + (-L.wordRows[0] * s) + 'px';
+      t.style.maskImage = bg; t.style.webkitMaskImage = bg; t.style.maskSize = bgSize; t.style.webkitMaskSize = bgSize;
+      t.style.maskPosition = mp; t.style.webkitMaskPosition = mp; t.style.maskRepeat = 'no-repeat'; t.style.webkitMaskRepeat = 'no-repeat';
+      el.appendChild(t);
+    });
+    piece(L.tagCols[0], L.tagRows[0], L.tagCols[1], L.tagRows[1], 'tag');
+    var m = L.mark, mw = (m[2] - m[0] + 1) * s, mh = (m[3] - m[1] + 1) * s;
+    var markLeft = LOGO_LEFT + (m[0] - bx) * s, markTop = LOGO_TOP + (m[1] - by) * s;
+    var MX = markLeft + mw / 2, MY = markTop + mh / 2;
+    /* the mark alone is centred at the start (like Keka's lone "k"); the logo then slides to re-centre */
+    logoEl.style.setProperty('--shift', (splash.dataset.variant === 'converge' ? (200 - MX) : 0) + 'px');
+    glow.style.left = (markLeft - mw * 0.25) + 'px'; glow.style.top = (markTop - mh * 0.25) + 'px';
+    glow.style.width = (mw * 1.5) + 'px'; glow.style.height = (mh * 1.5) + 'px';
+    var converge = splash.dataset.variant === 'converge';
+    SHARDS.forEach(function (sh) {
+      var el = piece(m[0], m[1], m[2], m[3], 'shard ' + sh.k);
+      el.style.clipPath = sh.clip; el.style.webkitClipPath = sh.clip;
+      var F = FLIGHTS[sh.k];
+      if (converge) {
+        var cx = markLeft + sh.centroid[0] * mw, cy = markTop + sh.centroid[1] * mh;
+        var d = F.d.replace(/MX([+-]\d+)/g, function (_, n) { return (MX + +n).toFixed(1); })
+                   .replace(/MY([+-]\d+)/g, function (_, n) { return (MY + +n).toFixed(1); })
+                   .replace('START', cx.toFixed(1) + ' ' + cy.toFixed(1)).replace('END', cx.toFixed(1) + ' ' + cy.toFixed(1));
+        /* path() coordinates are relative to the element's own box, so park the box at the container origin */
+        el.style.left = '0px'; el.style.top = '0px';
+        el.style.transformOrigin = (sh.centroid[0] * 100) + '% ' + (sh.centroid[1] * 100) + '%';
+        el.style.offsetPath = 'path("' + d + '")'; el.style.offsetAnchor = 'auto';
+        el.style.setProperty('--dur', F.dur + 'ms'); el.style.setProperty('--delay', F.delay + 'ms'); el.style.setProperty('--land', F.land + 'ms');
+        var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        p.setAttribute('class', 'trail'); p.setAttribute('pathLength', '1000'); p.setAttribute('d', d);
+        p.style.setProperty('--dur', F.dur + 'ms'); p.style.setProperty('--delay', F.delay + 'ms');
+        fx.appendChild(p);
+      } else {
+        el.style.transformOrigin = sh.corner;
+        el.style.setProperty('--pop', F.pop + 'ms'); el.style.setProperty('--shim', F.shim + 'ms');
+        var r = document.createElement('span'); r.className = 'ripple';
+        var cp = sh.corner.split(' ');
+        r.style.left = (markLeft + parseFloat(cp[0]) / 100 * mw) + 'px'; r.style.top = (markTop + parseFloat(cp[1]) / 100 * mh) + 'px';
+        r.style.setProperty('--pop', F.pop + 'ms'); logoEl.appendChild(r);
+      }
+    });
+    if (!converge) {
+      /* glint masked to the real wordmark + tagline pixels, and a loading line under the tagline */
+      var wx0 = L.letters[0][0], wx1 = L.letters[L.letters.length - 1][1], wy0 = L.wordRows[0], wy1 = L.tagRows[1];
+      var sheen = document.createElement('div'); sheen.className = 'sheen';
+      sheen.style.left = (LOGO_LEFT + (wx0 - bx) * s) + 'px'; sheen.style.top = (LOGO_TOP + (wy0 - by) * s) + 'px';
+      sheen.style.width = ((wx1 - wx0 + 1) * s) + 'px'; sheen.style.height = ((wy1 - wy0 + 1) * s) + 'px';
+      var smp = (-wx0 * s) + 'px ' + (-wy0 * s) + 'px';
+      sheen.style.maskImage = bg; sheen.style.webkitMaskImage = bg; sheen.style.maskSize = bgSize; sheen.style.webkitMaskSize = bgSize;
+      sheen.style.maskPosition = smp; sheen.style.webkitMaskPosition = smp; sheen.style.maskRepeat = 'no-repeat'; sheen.style.webkitMaskRepeat = 'no-repeat';
+      logoEl.appendChild(sheen);
+      var line = document.createElement('div'); line.className = 'loadline';
+      line.style.left = (LOGO_LEFT + (L.tagCols[0] - bx) * s) + 'px'; line.style.top = (LOGO_TOP + (wy1 - by) * s + 10) + 'px';
+      line.style.width = ((L.tagCols[1] - L.tagCols[0]) * s * 0.34) + 'px';
+      logoEl.appendChild(line);
+    }
+    /* trails live in the stage svg; make it follow the sliding logo too */
+    fx.style.transform = converge ? 'translateX(' + (200 - MX) + 'px)' : '';
+    fx.style.transition = 'none';
+    if (converge) { fx.style.animation = 'shift 700ms cubic-bezier(0.16,1,0.3,1) 500ms forwards'; } else { fx.style.animation = ''; }
+  }
+
+  var hold = false, timer, MIN = { converge: 3800, wash: 3200 }, dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  function logoKey() { return (splash.classList.contains('brand') || dark) ? 'pale' : 'navy'; }
+  function play() {
+    clearTimeout(timer);
+    splash.classList.remove('leave', 'play'); app.classList.remove('show');
+    build(logoKey());
+    void splash.offsetWidth;
+    splash.classList.add('play');
+    if (!hold) timer = setTimeout(leave, MIN[splash.dataset.variant]);
+  }
+  function leave() { splash.classList.add('leave'); app.classList.add('show'); }
+  function press(group, el) { Array.prototype.forEach.call(document.querySelectorAll(group), function (b) { b.setAttribute('aria-pressed', b === el); }); }
+  document.getElementById('replay').onclick = play;
+  document.getElementById('hold').onclick = function () { hold = !hold; this.setAttribute('aria-pressed', hold); play(); };
+  document.getElementById('white').onclick = function () { splash.classList.remove('brand'); press('#white,#brand', this); play(); };
+  document.getElementById('brand').onclick = function () { splash.classList.add('brand'); press('#white,#brand', this); play(); };
+  Array.prototype.forEach.call(document.querySelectorAll('.var'), function (b) {
+    b.onclick = function () { splash.dataset.variant = b.dataset.variant; press('.var', b); play(); };
+  });
+  function theme() { root.dataset.theme = dark ? 'dark' : 'light'; document.getElementById('theme').textContent = dark ? 'Light mode' : 'Dark mode'; }
+  document.getElementById('theme').onclick = function () { dark = !dark; theme(); play(); };
+  theme();
+  splash.addEventListener('click', function () { if (hold) leave(); });
+  var imgs = [new Image(), new Image()]; imgs[0].src = NAVY_SRC; imgs[1].src = PALE_SRC;
+  Promise.all(imgs.map(function (i) { return i.decode().catch(function () {}); })).then(play);
+})();
+</script>
+</body>
+</html>

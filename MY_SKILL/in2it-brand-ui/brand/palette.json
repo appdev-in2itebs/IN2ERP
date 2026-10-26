@@ -1,0 +1,27 @@
+{
+  "brand": "In2IT EBS | Converged Intelligence",
+  "colors": {
+    "navy":        {"hex": "#121E3B", "use": "Dominant — titles, dark fills, primary bars"},
+    "white":       {"hex": "#FFFFFF", "use": "Primary background"},
+    "light_blue":  {"hex": "#94B8D0", "use": "Cards, secondary highlights, second chart series"},
+    "accent_blue": {"hex": "#3F75A3", "use": "Accent words, callouts, section labels, links"},
+    "pale_blue":   {"hex": "#A3CBE6", "use": "Soft fills, icon backgrounds, third chart series"},
+    "muted_grey":  {"hex": "#5A6478", "use": "Body copy, captions, footers"},
+    "off_white":   {"hex": "#F7F8FA", "use": "Alternate background, callout boxes, table row banding"},
+    "sand":        {"hex": "#C1BC9C", "use": "Thin dividers only"}
+  },
+  "rag": {
+    "note": "RAG status colours are the only permitted exception to the eight-colour palette, used for status cells only",
+    "red":   {"fill": "#F9E0DC", "text": "#C0392B"},
+    "amber": {"fill": "#FBEBD0", "text": "#B9770E"},
+    "green": {"fill": "#DDF0E4", "text": "#2E7D4F"}
+  },
+  "fonts": {
+    "headline": "Newsreader (bold for the statement, italic for the accent word)",
+    "body": "IBM Plex Sans (regular 14–16pt body; tables, captions, footers)",
+    "fallbacks": {"Newsreader": "Cambria, Georgia", "IBM Plex Sans": "Calibri, Arial"}
+  },
+  "chart_series_order": ["#121E3B", "#3F75A3", "#94B8D0", "#A3CBE6", "#5A6478"],
+  "footer_left": "In2IT EBS  |  Converged Intelligence",
+  "footer_right": "Confidential"
+}

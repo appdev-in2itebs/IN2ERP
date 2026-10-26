@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" aria-label="In2IT EBS mark">
+  <!-- Geometry measured from the official logo file: a 2x2 grid; each cell holds the triangle
+       (cell top-left, cell top-right, cell bottom-right), i.e. the right angle sits at the cell's top-right. -->
+  <g fill="#121E3B">
+    <polygon class="shard tl" points="0,0 50,0 50,50" />
+    <polygon class="shard tr" points="50,0 100,0 100,50" />
+    <polygon class="shard bl" points="0,50 50,50 50,100" />
+    <polygon class="shard br" points="50,50 100,50 100,100" />
+  </g>
+</svg>

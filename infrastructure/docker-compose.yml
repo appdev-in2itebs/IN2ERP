@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../infrastructure/Dockerfile.backend
+    container_name: in2it-erp-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=In2IT-ERP
+      - APP_ENV=development
+      - DEBUG=true
+      - SECRET_KEY=docker-secret-key-change-me
+      - DATABASE_URL=sqlite+aiosqlite:///./data/in2it_erp.db
+      # To switch to PostgreSQL:
+      # - DATABASE_URL=postgresql+asyncpg://erpuser:erppassword@postgres:5432/in2it_erp
+      - JWT_SECRET_KEY=docker-jwt-secret-key
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://localhost"]
+    volumes:
+      - backend-data:/app/data
+    restart: unless-stopped
+    # depends_on:
+    #   - postgres
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../infrastructure/Dockerfile.frontend
+    container_name: in2it-erp-frontend
+    ports:
+      - "80:80"
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Optional PostgreSQL container for testing production-like database locally
+  postgres:
+    image: postgres:16-alpine
+    container_name: in2it-erp-postgres
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: erpuser
+      POSTGRES_PASSWORD: erppassword
+      POSTGRES_DB: in2it_erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+  postgres-data:
