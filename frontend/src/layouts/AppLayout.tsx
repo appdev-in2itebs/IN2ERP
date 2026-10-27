@@ -6,7 +6,10 @@ import { ToastContainer } from '@/components/ToastContainer';
 
 export const AppLayout: React.FC = () => {
   const location = useLocation();
-  const isLaunchpad = location.pathname === '/';
+  const isFullscreen =
+    location.pathname === '/' ||
+    location.pathname === '/settings' ||
+    location.pathname === '/employees';
 
   const getPageTitle = (pathname: string) => {
     switch (pathname) {
@@ -16,6 +19,8 @@ export const AppLayout: React.FC = () => {
         return 'Business Applications';
       case '/employees':
         return 'Employee Directory';
+      case '/settings':
+        return 'Master Data & Settings';
       case '/roles':
         return 'Roles & Access Control (RBAC)';
       case '/assignments':
@@ -27,7 +32,7 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  if (isLaunchpad) {
+  if (isFullscreen) {
     return (
       <div className="launchpad-fullscreen-shell">
         <Outlet />

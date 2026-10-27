@@ -290,6 +290,19 @@ export const EtherealLaunchpad: React.FC = () => {
                 <span>My Profile</span>
               </button>
 
+              {isAdmin && (
+                <button
+                  className="dropdown-menu-item"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    navigate('/settings');
+                  }}
+                >
+                  <ShieldCheck size={16} className="item-icon" />
+                  <span>Master Data & Settings</span>
+                </button>
+              )}
+
               <div className="dropdown-divider" />
 
               {/* Appearance segmented control (Exact from Image 2) */}

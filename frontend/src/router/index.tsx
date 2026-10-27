@@ -10,6 +10,7 @@ import { RegisterView } from '@/views/auth/RegisterView';
 import { DashboardView } from '@/views/dashboard/DashboardView';
 import { ApplicationsView } from '@/views/applications/ApplicationsView';
 import { EmployeesView } from '@/views/employees/EmployeesView';
+import { MasterSettingsView } from '@/views/admin/MasterSettingsView';
 import { RolesView } from '@/views/roles/RolesView';
 import { AssignmentsView } from '@/views/assignments/AssignmentsView';
 import { AuditView } from '@/views/audit/AuditView';
@@ -33,18 +34,26 @@ export const AppRouter: React.FC = () => {
       >
         <Route path="/" element={<DashboardView />} />
         <Route
-          path="/applications"
+          path="/settings"
           element={
-            <ProtectedRoute permission="applications.read">
-              <ApplicationsView />
+            <ProtectedRoute>
+              <MasterSettingsView />
             </ProtectedRoute>
           }
         />
         <Route
           path="/employees"
           element={
-            <ProtectedRoute permission="employees.read">
-              <EmployeesView />
+            <ProtectedRoute>
+              <MasterSettingsView />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/applications"
+          element={
+            <ProtectedRoute permission="applications.read">
+              <ApplicationsView />
             </ProtectedRoute>
           }
         />
