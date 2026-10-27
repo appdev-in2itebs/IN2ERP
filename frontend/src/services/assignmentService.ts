@@ -17,4 +17,22 @@ export const assignmentService = {
   deleteAssignment: async (id: string): Promise<void> => {
     return apiClient.delete(`/assignments/${id}`);
   },
+
+  syncUserAssignments: async (
+    userId: string,
+    payload: {
+      assignments: {
+        application_id?: string;
+        application_slug?: string;
+        app_role: string;
+        status?: string;
+      }[];
+      department?: string;
+      designation?: string;
+      phone?: string;
+      is_active?: boolean;
+    }
+  ): Promise<any> => {
+    return apiClient.put(`/assignments/user/${userId}/sync`, payload);
+  },
 };

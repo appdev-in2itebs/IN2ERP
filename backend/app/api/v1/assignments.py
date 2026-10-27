@@ -10,9 +10,12 @@ from app.api.v1.dependencies import get_current_user, require_permission
 from app.db.database import get_db
 from app.models.user import User
 from app.repositories.application_repository import ApplicationRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.application import (
     AssignmentCreate, AssignmentResponse, AssignmentUpdate,
+    UserAssignmentSyncRequest,
 )
+from app.schemas.user import UserResponse
 from app.services.assignment_service import AssignmentService
 
 router = APIRouter(prefix="/assignments", tags=["Assignments"])
@@ -71,3 +74,38 @@ async def delete_assignment(
     """Remove an application assignment."""
     service = AssignmentService(db)
     await service.delete_assignment(assignment_id, deleted_by=current_user.id)
+
+
+@router.put("/user/{user_id}/sync", response_model=UserResponse)
+async def sync_user_assignments(
+    user_id: str,
+    data: UserAssignmentSyncRequest,
+    current_user: User = Depends(require_permission("assignments.update")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sync all application assignments and metadata for a user (Odoo ERP Access Rights)."""
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = {}
+    if data.department is not None:
+        update_data["department"] = data.department
+    if data.designation is not None:
+        update_data["designation"] = data.designation
+    if data.phone is not None:
+        update_data["phone"] = data.phone
+    if data.is_active is not None:
+        update_data["is_active"] = data.is_active
+
+    if update_data:
+        await user_repo.update(user, update_data)
+
+    service = AssignmentService(db)
+    assignments_dicts = [a.model_dump() for a in data.assignments]
+    await service.sync_user_assignments(user_id, assignments_dicts, assigned_by=current_user.id)
+
+    updated_user = await user_repo.get_by_id(user_id)
+    return UserResponse.model_validate(updated_user)

@@ -58,5 +58,24 @@ class User(Base):
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
+    @property
+    def primary_role(self) -> str:
+        if self.is_superadmin:
+            return "Super Administrator"
+        if self.role_assignments and len(self.role_assignments) > 0:
+            assigned = self.role_assignments[0]
+            if hasattr(assigned, "role") and assigned.role:
+                return assigned.role.name
+        return "Employee"
+
+    @property
+    def role_names(self) -> list[str]:
+        if self.is_superadmin:
+            return ["Super Administrator"]
+        if not self.role_assignments:
+            return ["Employee"]
+        names = [ra.role.name for ra in self.role_assignments if hasattr(ra, "role") and ra.role]
+        return names if names else ["Employee"]
+
     def __repr__(self) -> str:
         return f"<User {self.email}>"

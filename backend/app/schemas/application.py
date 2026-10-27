@@ -85,3 +85,18 @@ class AssignmentResponse(BaseModel):
     application_name: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class UserAssignmentSyncItem(BaseModel):
+    application_id: str | None = None
+    application_slug: str | None = None
+    app_role: str = "Member"
+    status: str = "active"
+
+
+class UserAssignmentSyncRequest(BaseModel):
+    assignments: list[UserAssignmentSyncItem] = []
+    department: str | None = None
+    designation: str | None = None
+    phone: str | None = None
+    is_active: bool | None = None

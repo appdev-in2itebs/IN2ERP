@@ -3,6 +3,7 @@ import { useAuth } from '@/stores/AuthContext';
 import { userService } from '@/services/userService';
 import { roleService } from '@/services/roleService';
 import { applicationService } from '@/services/applicationService';
+import { assignmentService } from '@/services/assignmentService';
 import { User, Role } from '@/types';
 import { In2ITMark } from '@/components/In2ITMark';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +17,9 @@ import {
   ShieldCheck,
   Users,
   Grid,
+  LayoutGrid,
+  List,
+  Phone,
   Bot,
   Bell,
   Sparkles,
@@ -89,6 +93,10 @@ export const MasterSettingsView: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Employee Console (Odoo ERP Style: List vs Kanban & Department Filters)
+  const [employeeViewMode, setEmployeeViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('ALL');
 
   // Modals & Drawers
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -384,10 +392,15 @@ export const MasterSettingsView: React.FC = () => {
   const openEditUserModal = (u: User) => {
     setEditingUser(u);
     // Find assigned apps from user object if available or sensible defaults
-    const currentApps = (u as any).assigned_apps || ['in2crm'];
+    const currentApps =
+      u.app_assignments && u.app_assignments.length > 0
+        ? u.app_assignments.map((a) => a.application_slug)
+        : ['in2crm'];
+
     const currentRoles: Record<string, string> = {};
     registeredApps.forEach((a) => {
-      currentRoles[a.slug] = (u as any).app_roles?.[a.slug] || a.availableRoles[0] || 'Member';
+      const match = u.app_assignments?.find((asgn) => asgn.application_slug === a.slug);
+      currentRoles[a.slug] = match?.app_role || a.availableRoles[0] || 'Member';
     });
 
     setUserForm({
@@ -397,7 +410,7 @@ export const MasterSettingsView: React.FC = () => {
       department: u.department || 'Sales',
       designation: u.designation || 'Specialist',
       phone: u.phone || '',
-      role: u.designation || 'Sales Manager',
+      role: u.primary_role || u.designation || 'Sales Manager',
       assignedApps: currentApps,
       appRoles: currentRoles,
       aiAssistantEnabled: true,
@@ -416,18 +429,23 @@ export const MasterSettingsView: React.FC = () => {
 
     try {
       if (editingUser) {
-        // Update user
-        await userService.updateUser(editingUser.id, {
-          first_name: userForm.firstName,
-          last_name: userForm.lastName,
+        // Update user profile & sync application assignments in database
+        await assignmentService.syncUserAssignments(editingUser.id, {
           department: userForm.department,
           designation: userForm.designation,
           phone: userForm.phone,
+          assignments: userForm.assignedApps.map((slug) => ({
+            application_slug: slug,
+            app_role: userForm.appRoles[slug] || 'Member',
+            status: 'active',
+          })),
         });
-        showToast(`Employee ${userForm.firstName} ${userForm.lastName} updated with ${userForm.assignedApps.length} application access grants.`);
+        showToast(
+          `Employee ${userForm.firstName} ${userForm.lastName} updated with ${userForm.assignedApps.length} application access grants.`
+        );
       } else {
         // Create user
-        await userService.createUser({
+        const newUser = await userService.createUser({
           email: userForm.email,
           password: 'password123',
           first_name: userForm.firstName,
@@ -436,7 +454,22 @@ export const MasterSettingsView: React.FC = () => {
           designation: userForm.designation,
           phone: userForm.phone,
         });
-        showToast(`Employee ${userForm.firstName} ${userForm.lastName} provisioned with custom application roles.`);
+
+        if (newUser && newUser.id) {
+          await assignmentService.syncUserAssignments(newUser.id, {
+            department: userForm.department,
+            designation: userForm.designation,
+            phone: userForm.phone,
+            assignments: userForm.assignedApps.map((slug) => ({
+              application_slug: slug,
+              app_role: userForm.appRoles[slug] || 'Member',
+              status: 'active',
+            })),
+          });
+        }
+        showToast(
+          `Employee ${userForm.firstName} ${userForm.lastName} provisioned with custom application roles.`
+        );
       }
 
       setIsAddUserOpen(false);
@@ -545,16 +578,62 @@ export const MasterSettingsView: React.FC = () => {
     }, 600);
   };
 
-  // Filtered users for search
+  // Departments list for filtering (Odoo ERP Production Style)
+  const departmentsList = [
+    { id: 'ALL', label: 'All Departments' },
+    { id: 'Leadership', label: 'Leadership' },
+    { id: 'Sales', label: 'Sales' },
+    { id: 'Engineering', label: 'Engineering' },
+    { id: 'Technology', label: 'Technology' },
+    { id: 'IT & Governance', label: 'IT & Governance' },
+  ];
+
+  // Helper for department badge styling
+  const getDeptClass = (dept?: string | null) => {
+    if (!dept) return 'dept-other';
+    const d = dept.toLowerCase();
+    if (d.includes('sale')) return 'dept-sales';
+    if (d.includes('eng')) return 'dept-eng';
+    if (d.includes('lead') || d.includes('exec') || d.includes('board')) return 'dept-lead';
+    if (d.includes('tech')) return 'dept-tech';
+    if (d.includes('it') || d.includes('gov')) return 'dept-it';
+    return 'dept-other';
+  };
+
+  // Helper for application badge color class
+  const getAppBadgeClass = (slug: string) => {
+    if (slug === 'in2crm') return 'crm';
+    if (slug === 'project-mgmt' || slug === 'in2projects') return 'proj';
+    if (slug === 'hr-management' || slug === 'in2hrm') return 'hrm';
+    if (slug === 'leave-mgmt' || slug === 'in2leave') return 'leave';
+    if (slug === 'finance' || slug === 'in2finance') return 'fin';
+    return 'admin';
+  };
+
+  // Filtered users considering both search query and department
   const filteredUsers = users.filter((u) => {
     const term = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
+      !term ||
       u.first_name.toLowerCase().includes(term) ||
       u.last_name.toLowerCase().includes(term) ||
       u.email.toLowerCase().includes(term) ||
-      (u.designation && u.designation.toLowerCase().includes(term))
-    );
+      (u.designation && u.designation.toLowerCase().includes(term)) ||
+      (u.department && u.department.toLowerCase().includes(term));
+
+    const matchesDept =
+      selectedDepartment === 'ALL' ||
+      (u.department && u.department.toLowerCase() === selectedDepartment.toLowerCase());
+
+    return matchesSearch && matchesDept;
   });
+
+  const getDeptCount = (deptId: string) => {
+    if (deptId === 'ALL') return users.length;
+    return users.filter(
+      (u) => u.department && u.department.toLowerCase() === deptId.toLowerCase()
+    ).length;
+  };
 
   return (
     <div className="master-settings-layout">
@@ -758,93 +837,279 @@ export const MasterSettingsView: React.FC = () => {
         ───────────────────────────────────────────────────────────── */}
         <div className="master-tab-content-area">
           {/* ════════════════════════════════════════════════════════════
-              TAB 1: Users & access (Screenshot 1)
+              TAB 1: Users & access (Odoo ERP Production Console)
           ════════════════════════════════════════════════════════════ */}
           {activeTab === 'users' && (
             <div className="settings-card-panel">
-              <div className="panel-top-action-bar">
-                <div className="panel-count-label">
-                  {filteredUsers.length} USERS • Enterprise Employee Directory
+              {/* Odoo ERP Toolbar: Department Filters & View Switcher */}
+              <div className="odoo-toolbar-bar">
+                {/* Department Filter Pills */}
+                <div className="odoo-dept-filters">
+                  {departmentsList.map((dept) => {
+                    const count = getDeptCount(dept.id);
+                    const isActive = selectedDepartment === dept.id;
+                    return (
+                      <button
+                        key={dept.id}
+                        className={`odoo-dept-pill ${isActive ? 'active' : ''}`}
+                        onClick={() => setSelectedDepartment(dept.id)}
+                      >
+                        <span>{dept.label}</span>
+                        <span className="odoo-dept-count">{count}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <button className="btn-plum-action" onClick={openCreateUserModal}>
-                  <Plus size={16} />
-                  <span>Add user</span>
-                </button>
+
+                {/* Right Controls: Search, View Switcher & Add User */}
+                <div className="odoo-toolbar-right">
+                  <div className="odoo-search-input">
+                    <Search size={14} color="#64748B" />
+                    <input
+                      type="text"
+                      placeholder="Search employees, roles..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="odoo-view-switcher">
+                    <button
+                      className={`odoo-view-btn ${employeeViewMode === 'kanban' ? 'active' : ''}`}
+                      onClick={() => setEmployeeViewMode('kanban')}
+                      title="Kanban Cards View (Odoo Style)"
+                    >
+                      <LayoutGrid size={15} />
+                      <span>Kanban</span>
+                    </button>
+                    <button
+                      className={`odoo-view-btn ${employeeViewMode === 'list' ? 'active' : ''}`}
+                      onClick={() => setEmployeeViewMode('list')}
+                      title="List Table View"
+                    >
+                      <List size={15} />
+                      <span>List</span>
+                    </button>
+                  </div>
+
+                  <button className="btn-plum-action" onClick={openCreateUserModal}>
+                    <Plus size={16} />
+                    <span>Add Employee</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Users Table */}
-              <div className="master-data-table-wrapper">
-                <table className="master-data-table">
-                  <thead>
-                    <tr>
-                      <th>NAME</th>
-                      <th>EMAIL</th>
-                      <th>ROLE</th>
-                      <th>STATUS</th>
-                      <th>ASSIGNED APPLICATIONS</th>
-                      <th>LAST LOGIN</th>
-                      <th style={{ textAlign: 'right' }}>ACTIONS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map((u) => {
-                      const roleDisplay = u.designation || (u.is_superadmin ? 'Administrator' : 'Employee');
-                      return (
-                        <tr key={u.id}>
-                          <td className="cell-name-bold">
-                            {u.first_name} {u.last_name}
-                          </td>
-                          <td className="cell-muted">{u.email}</td>
-                          <td>
-                            <span className="role-lavender-badge">{roleDisplay}</span>
-                          </td>
-                          <td>
-                            <span className="status-active-pill">Active</span>
-                          </td>
-                          <td>
-                            <div className="user-apps-pill-stack">
-                              <span className="app-micro-pill crm">In2CRM</span>
-                              <span className="app-micro-pill proj">In2Projects</span>
-                              <span className="app-micro-pill ai">AI Bot ✨</span>
+              {/* ─────────────────────────────────────────────────────────────
+                  VIEW A: Odoo Kanban Cards Grid
+              ───────────────────────────────────────────────────────────── */}
+              {employeeViewMode === 'kanban' && (
+                <div className="odoo-kanban-container">
+                  {filteredUsers.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748B' }}>
+                      <Users size={36} color="#CBD5E1" style={{ margin: '0 auto 12px' }} />
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1E293B' }}>
+                        No employees match the selected criteria
+                      </div>
+                      <div style={{ fontSize: '0.8rem', marginTop: 4 }}>
+                        Try selecting "All Departments" or clearing your search query.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="odoo-kanban-grid">
+                      {filteredUsers.map((u) => {
+                        const initials = `${u.first_name?.[0] || 'E'}${u.last_name?.[0] || 'M'}`.toUpperCase();
+                        const deptClass = getDeptClass(u.department);
+                        const assignments = u.app_assignments || [];
+
+                        return (
+                          <div key={u.id} className="odoo-employee-card">
+                            <div>
+                              {/* Top identity row */}
+                              <div className="odoo-card-top">
+                                <div className="odoo-avatar-circle">{initials}</div>
+                                <div className="odoo-card-identity">
+                                  <h3 className="odoo-card-name">
+                                    {u.first_name} {u.last_name}
+                                  </h3>
+                                  <div className="odoo-card-designation">
+                                    {u.designation || 'Corporate Specialist'}
+                                  </div>
+                                  <span className={`odoo-badge-dept ${deptClass}`}>
+                                    {u.department || 'In2IT Enterprise'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Contact row */}
+                              <div className="odoo-card-contact-box">
+                                <div className="odoo-contact-row" title={u.email}>
+                                  <Mail size={13} color="#64748B" />
+                                  <span>{u.email}</span>
+                                </div>
+                                <div className="odoo-contact-row">
+                                  <Phone size={13} color="#64748B" />
+                                  <span>{u.phone || '+91 98765 43210'}</span>
+                                </div>
+                              </div>
+
+                              {/* Application Privileges Matrix */}
+                              <div className="odoo-app-access-preview">
+                                <div className="odoo-app-access-label">
+                                  Application Access ({assignments.length})
+                                </div>
+                                <div className="odoo-app-pills-row">
+                                  {assignments.length > 0 ? (
+                                    assignments.map((asgn) => {
+                                      const badgeClass = getAppBadgeClass(asgn.application_slug);
+                                      return (
+                                        <span
+                                          key={asgn.application_slug}
+                                          className={`odoo-app-badge ${badgeClass}`}
+                                          title={`Assigned Role: ${asgn.app_role}`}
+                                        >
+                                          <strong>{asgn.application_name}:</strong> {asgn.app_role}
+                                        </span>
+                                      );
+                                    })
+                                  ) : (
+                                    <span className="odoo-app-badge">
+                                      {u.is_superadmin
+                                        ? 'Superadmin (Global Full Access)'
+                                        : 'In2CRM: Member'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </td>
-                          <td className="cell-muted">
-                            {u.last_login_at
-                              ? new Date(u.last_login_at).toLocaleDateString('en-GB', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })
-                              : '27 Oct 2026'}
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div className="table-actions-group">
+
+                            {/* Card Footer */}
+                            <div className="odoo-card-footer">
+                              <span className="odoo-status-dot-active">Active</span>
                               <button
-                                className="table-action-btn"
+                                className="btn-odoo-edit-access"
                                 onClick={() => openEditUserModal(u)}
-                                title="Edit employee application access and roles"
+                                title="Manage Application Roles & HR Access Rights"
                               >
-                                <Edit2 size={14} />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                className="table-action-btn"
-                                onClick={() =>
-                                  showToast(`Password reset link dispatched for ${u.email}`)
-                                }
-                                title="Reset credentials"
-                              >
-                                <RotateCcw size={14} />
-                                <span>Reset</span>
+                                <ShieldCheck size={14} color="#6B2144" />
+                                <span>Access Rights</span>
                               </button>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─────────────────────────────────────────────────────────────
+                  VIEW B: Odoo List View Table
+              ───────────────────────────────────────────────────────────── */}
+              {employeeViewMode === 'list' && (
+                <div className="master-data-table-wrapper">
+                  <table className="master-data-table">
+                    <thead>
+                      <tr>
+                        <th>EMPLOYEE</th>
+                        <th>JOB POSITION & DEPT</th>
+                        <th>PRIMARY SYSTEM ROLE</th>
+                        <th>ASSIGNED APPLICATION PRIVILEGES</th>
+                        <th>STATUS</th>
+                        <th>LAST ACTIVE</th>
+                        <th style={{ textAlign: 'right' }}>ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => {
+                        const initials = `${u.first_name?.[0] || 'E'}${u.last_name?.[0] || 'M'}`.toUpperCase();
+                        const deptClass = getDeptClass(u.department);
+                        const roleDisplay = u.primary_role || u.designation || (u.is_superadmin ? 'Super Administrator' : 'Employee');
+                        const assignments = u.app_assignments || [];
+
+                        return (
+                          <tr key={u.id}>
+                            <td>
+                              <div className="odoo-user-row-identity">
+                                <div className="odoo-table-avatar">{initials}</div>
+                                <div>
+                                  <div className="cell-name-bold">
+                                    {u.first_name} {u.last_name}
+                                  </div>
+                                  <div className="cell-muted-sm">{u.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 600, color: '#1E293B', fontSize: '0.8rem' }}>
+                                {u.designation || 'Specialist'}
+                              </div>
+                              <span className={`odoo-badge-dept ${deptClass}`} style={{ marginTop: 3 }}>
+                                {u.department || 'Enterprise'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="role-lavender-badge">{roleDisplay}</span>
+                            </td>
+                            <td>
+                              <div className="odoo-app-pills-row">
+                                {assignments.length > 0 ? (
+                                  assignments.map((asgn) => {
+                                    const badgeClass = getAppBadgeClass(asgn.application_slug);
+                                    return (
+                                      <span
+                                        key={asgn.application_slug}
+                                        className={`odoo-app-badge ${badgeClass}`}
+                                      >
+                                        <strong>{asgn.application_name}:</strong> {asgn.app_role}
+                                      </span>
+                                    );
+                                  })
+                                ) : (
+                                  <span className="odoo-app-badge crm">In2CRM: Member</span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="status-active-pill">Active</span>
+                            </td>
+                            <td className="cell-muted">
+                              {u.last_login_at
+                                ? new Date(u.last_login_at).toLocaleDateString('en-GB', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })
+                                : '27 Oct 2026'}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div className="table-actions-group">
+                                <button
+                                  className="table-action-btn"
+                                  onClick={() => openEditUserModal(u)}
+                                  title="Edit employee application access and roles"
+                                >
+                                  <ShieldCheck size={14} color="#6B2144" />
+                                  <span>Access Rights</span>
+                                </button>
+                                <button
+                                  className="table-action-btn"
+                                  onClick={() =>
+                                    showToast(`Password reset link dispatched for ${u.email}`)
+                                  }
+                                  title="Reset credentials"
+                                >
+                                  <RotateCcw size={14} />
+                                  <span>Reset</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -1992,52 +2257,77 @@ export const MasterSettingsView: React.FC = () => {
               </div>
 
               {/* Section 3: Scoped Application Access (Dynamically rendered from registeredApps) */}
+              {/* Section 3: Odoo ERP Access Rights Matrix Table */}
               <div className="form-section-title">
-                3. Assign ERP Applications & Scoped Roles (Admin Granted Only)
+                3. Application Access Rights Matrix (Odoo ERP Model)
               </div>
               <p className="field-hint" style={{ marginTop: -8, marginBottom: 12 }}>
-                Only the administrator grants application launch rights and configures the employee's exact role per application.
+                Configure application access and granular scoped roles for this employee. Only granted applications will appear on their launchpad.
               </p>
 
-              <div className="app-assignments-provision-stack">
-                {registeredApps.map((appOption) => {
-                  const isChecked = userForm.assignedApps.includes(appOption.slug);
-                  return (
-                    <div
-                      key={appOption.slug}
-                      className={`provision-item ${isChecked ? 'selected' : ''}`}
-                    >
-                      <label className="checkbox-app-label">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setUserForm({
-                                ...userForm,
-                                assignedApps: [...userForm.assignedApps, appOption.slug],
-                              });
-                            } else {
-                              setUserForm({
-                                ...userForm,
-                                assignedApps: userForm.assignedApps.filter(
-                                  (s) => s !== appOption.slug
-                                ),
-                              });
-                            }
-                          }}
-                        />
-                        <span className="app-name-strong">{appOption.name}</span>
-                        <span className="app-category-mini">({appOption.category})</span>
-                      </label>
+              <table className="odoo-access-matrix-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '38%' }}>ERP APPLICATION</th>
+                    <th style={{ width: '25%' }}>ACCESS STATUS</th>
+                    <th style={{ width: '37%' }}>APPLICATION ROLE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registeredApps.map((appOption) => {
+                    const isChecked = userForm.assignedApps.includes(appOption.slug);
+                    const selectedRole = userForm.appRoles[appOption.slug] || appOption.availableRoles[0] || 'Member';
 
-                      {isChecked && (
-                        <div className="app-role-select-box">
-                          <label>Role in {appOption.name}:</label>
+                    return (
+                      <tr key={appOption.slug} className={isChecked ? 'row-selected' : ''}>
+                        <td>
+                          <div style={{ fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: appOption.themeColor || '#6B2144',
+                                display: 'inline-block',
+                              }}
+                            />
+                            <span>{appOption.name}</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: 2 }}>
+                            {appOption.category}
+                          </div>
+                        </td>
+                        <td>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.8rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setUserForm({
+                                    ...userForm,
+                                    assignedApps: [...userForm.assignedApps, appOption.slug],
+                                  });
+                                } else {
+                                  setUserForm({
+                                    ...userForm,
+                                    assignedApps: userForm.assignedApps.filter(
+                                      (s) => s !== appOption.slug
+                                    ),
+                                  });
+                                }
+                              }}
+                            />
+                            <span style={{ fontWeight: isChecked ? 600 : 400, color: isChecked ? '#059669' : '#64748B' }}>
+                              {isChecked ? 'Granted' : 'Revoked'}
+                            </span>
+                          </label>
+                        </td>
+                        <td>
                           <select
-                            value={
-                              userForm.appRoles[appOption.slug] || appOption.availableRoles[0]
-                            }
+                            className="odoo-role-select"
+                            disabled={!isChecked}
+                            value={selectedRole}
                             onChange={(e) =>
                               setUserForm({
                                 ...userForm,
@@ -2054,12 +2344,12 @@ export const MasterSettingsView: React.FC = () => {
                               </option>
                             ))}
                           </select>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
               {/* Section 4: AI Assistant Privileges */}
               <div className="form-section-title">4. AI Assistant & Chatbot Access</div>

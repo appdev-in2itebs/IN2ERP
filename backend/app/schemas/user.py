@@ -30,6 +30,15 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class UserAppAssignmentDetail(BaseModel):
+    application_slug: str
+    application_name: str
+    app_role: str
+    status: str = "active"
+
+    model_config = {"from_attributes": True}
+
+
 class UserResponse(UserBase):
     id: str
     is_active: bool
@@ -37,6 +46,9 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     last_login_at: datetime | None = None
+    primary_role: str = "Employee"
+    role_names: list[str] = []
+    app_assignments: list[UserAppAssignmentDetail] = []
 
     model_config = {"from_attributes": True}
 

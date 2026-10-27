@@ -1,3 +1,10 @@
+export interface UserAppAssignmentDetail {
+  application_slug: string;
+  application_name: string;
+  app_role: string;
+  status: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -12,6 +19,9 @@ export interface User {
   created_at: string;
   updated_at: string;
   last_login_at?: string | null;
+  primary_role?: string;
+  role_names?: string[];
+  app_assignments?: UserAppAssignmentDetail[];
   roles?: { id: string; name: string; color?: string | null }[];
   permissions?: string[];
 }

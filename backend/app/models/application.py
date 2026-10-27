@@ -82,3 +82,11 @@ class AppAssignment(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="app_assignments")
     application: Mapped["Application"] = relationship("Application", back_populates="assignments")
+
+    @property
+    def application_slug(self) -> str:
+        return self.application.slug if self.application else ""
+
+    @property
+    def application_name(self) -> str:
+        return self.application.name if self.application else ""

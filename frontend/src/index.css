@@ -4281,5 +4281,402 @@ button, input, select, textarea {
   white-space: nowrap;
 }
 
+/* ==========================================================================
+   ODOO ERP PRODUCTION-GRADE EMPLOYEE CONSOLE & ACCESS MATRIX
+   ========================================================================== */
+
+/* Department & Filter Toolbar */
+.odoo-toolbar-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E2E8F0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.odoo-dept-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.odoo-dept-pill {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.odoo-dept-pill:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+.odoo-dept-pill.active {
+  background: #6B2144;
+  color: #FFFFFF;
+  border-color: #6B2144;
+  box-shadow: 0 2px 6px rgba(107, 33, 68, 0.25);
+}
+
+.odoo-dept-count {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.odoo-dept-pill:not(.active) .odoo-dept-count {
+  background: #CBD5E1;
+  color: #334155;
+}
+
+.odoo-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.odoo-search-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  min-width: 240px;
+}
+
+.odoo-search-input input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.8rem;
+  color: #0F172A;
+  width: 100%;
+}
+
+.odoo-view-switcher {
+  display: flex;
+  align-items: center;
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.odoo-view-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #64748B;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.odoo-view-btn:hover {
+  color: #0F172A;
+}
+
+.odoo-view-btn.active {
+  background: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Kanban Cards Grid (Odoo Style) */
+.odoo-kanban-container {
+  padding: 20px;
+  background: #F8FAFC;
+}
+
+.odoo-kanban-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.odoo-employee-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.odoo-employee-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-color: #CBD5E1;
+}
+
+.odoo-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.odoo-avatar-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #121E3B 0%, #6B2144 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(18, 30, 59, 0.2);
+}
+
+.odoo-card-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.odoo-card-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.odoo-card-designation {
+  font-size: 0.78rem;
+  color: #475569;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.odoo-badge-dept {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.dept-sales { background: #FFE4E6; color: #BE123C; }
+.dept-eng { background: #ECFDF5; color: #047857; }
+.dept-lead { background: #FEF3C7; color: #B45309; }
+.dept-tech { background: #E0F2FE; color: #0369A1; }
+.dept-it { background: #EEF2FF; color: #4338CA; }
+.dept-other { background: #F1F5F9; color: #475569; }
+
+.odoo-card-contact-box {
+  background: #F8FAFC;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  font-size: 0.76rem;
+  color: #64748B;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.odoo-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.odoo-app-access-preview {
+  margin-bottom: 14px;
+}
+
+.odoo-app-access-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #94A3B8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.odoo-app-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.odoo-app-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  color: #334155;
+}
+
+.odoo-app-badge.crm { background: #FDF2F8; border-color: #FBCFE8; color: #9D174D; }
+.odoo-app-badge.proj { background: #EFF6FF; border-color: #BFDBFE; color: #1D4ED8; }
+.odoo-app-badge.hrm { background: #F5F3FF; border-color: #DDD6FE; color: #6D28D9; }
+.odoo-app-badge.leave { background: #ECFDF5; border-color: #A7F3D0; color: #047857; }
+.odoo-app-badge.fin { background: #FFFBEB; border-color: #FDE68A; color: #B45309; }
+.odoo-app-badge.admin { background: #FEF2F2; border-color: #FECACA; color: #B91C1C; }
+
+.odoo-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.odoo-status-dot-active {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #059669;
+}
+
+.odoo-status-dot-active::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.btn-odoo-edit-access {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #1E293B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-odoo-edit-access:hover {
+  background: #6B2144;
+  color: #FFFFFF;
+  border-color: #6B2144;
+}
+
+/* Odoo Table enhancements */
+.odoo-user-row-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.odoo-table-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #121E3B 0%, #6B2144 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Odoo Access Rights Matrix Table in Modal */
+.odoo-access-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-top: 6px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.odoo-access-matrix-table th {
+  background: #F8FAFC;
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748B;
+  border-bottom: 1px solid #E2E8F0;
+  text-align: left;
+}
+
+.odoo-access-matrix-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.odoo-access-matrix-table tr:hover td {
+  background: #FAFBFC;
+}
+
+.odoo-access-matrix-table tr.row-selected td {
+  background: #FDF4F8;
+}
+
+.odoo-role-select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: #FFFFFF;
+  color: #0F172A;
+  outline: none;
+}
+
+.odoo-role-select:disabled {
+  background: #F1F5F9;
+  color: #94A3B8;
+  cursor: not-allowed;
+}
+
 
 

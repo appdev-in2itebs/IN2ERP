@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.user import User
 from app.models.role import UserRole, UserPermissionOverride
+from app.models.application import AppAssignment
 
 
 class UserRepository:
@@ -23,6 +24,7 @@ class UserRepository:
                 selectinload(User.permission_overrides).selectinload(
                     UserPermissionOverride.permission
                 ),
+                selectinload(User.app_assignments).selectinload(AppAssignment.application),
             )
             .where(User.id == user_id)
         )
@@ -33,10 +35,13 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def list_users(
-        self, page: int = 1, per_page: int = 20, search: str | None = None,
+        self, page: int = 1, per_page: int = 50, search: str | None = None,
         department: str | None = None, is_active: bool | None = None
     ) -> tuple[list[User], int]:
-        query = select(User)
+        query = select(User).options(
+            selectinload(User.role_assignments).selectinload(UserRole.role),
+            selectinload(User.app_assignments).selectinload(AppAssignment.application),
+        )
         count_query = select(func.count(User.id))
 
         if search:

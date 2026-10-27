@@ -122,3 +122,60 @@ class AssignmentService:
         ))
 
         await self.app_repo.delete_assignment(assignment)
+
+    async def sync_user_assignments(
+        self,
+        user_id: str,
+        assignments_data: list[dict],
+        assigned_by: str,
+    ) -> list[AppAssignment]:
+        from datetime import datetime, timezone
+        user = await self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        existing = await self.app_repo.get_user_assignments(user_id)
+        existing_map = {a.application_id: a for a in existing}
+
+        all_apps = await self.app_repo.list_applications()
+        app_by_slug = {app.slug: app for app in all_apps}
+        app_by_id = {app.id: app for app in all_apps}
+
+        synced_app_ids = set()
+
+        for item in assignments_data:
+            app = None
+            if item.get("application_id") and item["application_id"] in app_by_id:
+                app = app_by_id[item["application_id"]]
+            elif item.get("application_slug") and item["application_slug"] in app_by_slug:
+                app = app_by_slug[item["application_slug"]]
+
+            if not app:
+                continue
+
+            synced_app_ids.add(app.id)
+            app_role = item.get("app_role", "Member")
+            status = item.get("status", "active")
+
+            if app.id in existing_map:
+                existing_assignment = existing_map[app.id]
+                existing_assignment.app_role = app_role
+                existing_assignment.status = status
+            else:
+                new_assignment = AppAssignment(
+                    user_id=user_id,
+                    application_id=app.id,
+                    app_role=app_role,
+                    status=status,
+                    assigned_at=datetime.now(timezone.utc),
+                    assigned_by=assigned_by,
+                )
+                await self.app_repo.create_assignment(new_assignment)
+
+        # Remove assignments that were unselected/unassigned
+        for app_id, assignment in existing_map.items():
+            if app_id not in synced_app_ids:
+                await self.app_repo.delete_assignment(assignment)
+
+        await self.db.flush()
+        return await self.app_repo.get_user_assignments(user_id)
