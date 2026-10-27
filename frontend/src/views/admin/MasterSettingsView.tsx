@@ -42,6 +42,7 @@ import {
   Mail,
   PlusCircle,
   Key,
+  Copy,
   ExternalLink,
 } from 'lucide-react';
 
@@ -105,6 +106,11 @@ export const MasterSettingsView: React.FC = () => {
   const [managingRolesApp, setManagingRolesApp] = useState<RegisteredApp | null>(null);
   const [newRoleInput, setNewRoleInput] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Reset Password Modal State
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [newTempPassword, setNewTempPassword] = useState('password123');
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
 
   // Application Registry State (Pre-populated with In2ERP modules & extensible by admin)
   const [registeredApps, setRegisteredApps] = useState<RegisteredApp[]>([
@@ -237,6 +243,7 @@ export const MasterSettingsView: React.FC = () => {
     } as Record<string, string>,
     aiAssistantEnabled: true,
     aiAssistantScope: 'pipeline_insights',
+    temporaryPassword: 'password123',
   });
 
   // AI Assistant Tab State
@@ -384,6 +391,7 @@ export const MasterSettingsView: React.FC = () => {
       },
       aiAssistantEnabled: true,
       aiAssistantScope: 'pipeline_insights',
+      temporaryPassword: 'password123',
     });
     setIsAddUserOpen(true);
   };
@@ -415,8 +423,50 @@ export const MasterSettingsView: React.FC = () => {
       appRoles: currentRoles,
       aiAssistantEnabled: true,
       aiAssistantScope: 'pipeline_insights',
+      temporaryPassword: 'password123',
     });
     setIsAddUserOpen(true);
+  };
+
+  // Open Reset Password Dialog
+  const openResetPasswordModal = (u: User) => {
+    setResetPasswordUser(u);
+    setNewTempPassword('password123');
+    setIsResetPasswordOpen(true);
+  };
+
+  // Auto-generate temporary password
+  const handleGeneratePassword = () => {
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    setNewTempPassword(`In2IT@${randomDigits}`);
+  };
+
+  // Submit Password Reset
+  const handleSaveResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordUser || !newTempPassword.trim()) return;
+
+    try {
+      await userService.resetPassword(resetPasswordUser.id, newTempPassword.trim());
+      // Copy to clipboard
+      navigator.clipboard?.writeText(
+        `Email: ${resetPasswordUser.email}\nTemporary Password: ${newTempPassword.trim()}\nLogin URL: http://localhost:5173/login`
+      );
+      showToast(
+        `Password updated for ${resetPasswordUser.first_name} ${resetPasswordUser.last_name}! Login credentials copied to clipboard.`
+      );
+      setIsResetPasswordOpen(false);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to reset password.');
+    }
+  };
+
+  // Quick copy default credentials
+  const handleQuickCopyCredentials = (u: User) => {
+    navigator.clipboard?.writeText(
+      `Email: ${u.email}\nPassword: password123\nLogin URL: http://localhost:5173/login`
+    );
+    showToast(`Credentials for ${u.first_name} ${u.last_name} copied to clipboard! (Password: password123)`);
   };
 
   // Submit Create or Edit User
@@ -444,10 +494,10 @@ export const MasterSettingsView: React.FC = () => {
           `Employee ${userForm.firstName} ${userForm.lastName} updated with ${userForm.assignedApps.length} application access grants.`
         );
       } else {
-        // Create user
+        // Create user with explicit temporary password
         const newUser = await userService.createUser({
           email: userForm.email,
-          password: 'password123',
+          password: userForm.temporaryPassword || 'password123',
           first_name: userForm.firstName,
           last_name: userForm.lastName,
           department: userForm.department,
@@ -467,8 +517,12 @@ export const MasterSettingsView: React.FC = () => {
             })),
           });
         }
+        // Copy initial credentials
+        navigator.clipboard?.writeText(
+          `Email: ${userForm.email}\nTemporary Password: ${userForm.temporaryPassword || 'password123'}\nLogin URL: http://localhost:5173/login`
+        );
         showToast(
-          `Employee ${userForm.firstName} ${userForm.lastName} provisioned with custom application roles.`
+          `Employee ${userForm.firstName} ${userForm.lastName} provisioned with temporary password "${userForm.temporaryPassword || 'password123'}". Credentials copied to clipboard!`
         );
       }
 
@@ -984,15 +1038,38 @@ export const MasterSettingsView: React.FC = () => {
 
                             {/* Card Footer */}
                             <div className="odoo-card-footer">
-                              <span className="odoo-status-dot-active">Active</span>
-                              <button
-                                className="btn-odoo-edit-access"
-                                onClick={() => openEditUserModal(u)}
-                                title="Manage Application Roles & HR Access Rights"
-                              >
-                                <ShieldCheck size={14} color="#6B2144" />
-                                <span>Access Rights</span>
-                              </button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span className="odoo-status-dot-active">Active</span>
+                                <button
+                                  type="button"
+                                  className="btn-quick-cred-pill"
+                                  onClick={() => handleQuickCopyCredentials(u)}
+                                  title="Click to copy employee login credentials (password: password123)"
+                                >
+                                  <Key size={11} color="#6B2144" />
+                                  <span>password123</span>
+                                  <Copy size={10} />
+                                </button>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button
+                                  type="button"
+                                  className="btn-odoo-icon-action"
+                                  onClick={() => openResetPasswordModal(u)}
+                                  title="Set / Reset Temporary Password"
+                                >
+                                  <RotateCcw size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-odoo-edit-access"
+                                  onClick={() => openEditUserModal(u)}
+                                  title="Manage Application Roles & HR Access Rights"
+                                >
+                                  <ShieldCheck size={14} color="#6B2144" />
+                                  <span>Access Rights</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -1084,6 +1161,16 @@ export const MasterSettingsView: React.FC = () => {
                             <td style={{ textAlign: 'right' }}>
                               <div className="table-actions-group">
                                 <button
+                                  type="button"
+                                  className="btn-quick-cred-pill"
+                                  onClick={() => handleQuickCopyCredentials(u)}
+                                  title="Copy login credentials (pass: password123)"
+                                >
+                                  <Key size={11} color="#6B2144" />
+                                  <span>password123</span>
+                                  <Copy size={10} />
+                                </button>
+                                <button
                                   className="table-action-btn"
                                   onClick={() => openEditUserModal(u)}
                                   title="Edit employee application access and roles"
@@ -1093,13 +1180,11 @@ export const MasterSettingsView: React.FC = () => {
                                 </button>
                                 <button
                                   className="table-action-btn"
-                                  onClick={() =>
-                                    showToast(`Password reset link dispatched for ${u.email}`)
-                                  }
-                                  title="Reset credentials"
+                                  onClick={() => openResetPasswordModal(u)}
+                                  title="Set / Reset Temporary Password"
                                 >
                                   <RotateCcw size={14} />
-                                  <span>Reset</span>
+                                  <span>Reset Pass</span>
                                 </button>
                               </div>
                             </td>
@@ -2235,6 +2320,76 @@ export const MasterSettingsView: React.FC = () => {
                 </div>
               </div>
 
+              {!editingUser && (
+                <div style={{
+                  background: '#FDF2F8',
+                  border: '1px solid #FBCFE8',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                  marginBottom: 16
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B2144', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Key size={14} /> Initial Login Password (Temporary) *
+                    </label>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#6B2144',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      onClick={() => {
+                        const rand = Math.floor(1000 + Math.random() * 9000);
+                        setUserForm({ ...userForm, temporaryPassword: `In2IT@${rand}` });
+                      }}
+                    >
+                      <Sparkles size={12} /> Auto-Generate
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      required
+                      value={userForm.temporaryPassword}
+                      onChange={(e) => setUserForm({ ...userForm, temporaryPassword: e.target.value })}
+                      placeholder="e.g. password123"
+                      style={{
+                        flex: 1,
+                        padding: '7px 12px',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: 6,
+                        fontSize: '0.86rem',
+                        fontFamily: 'monospace',
+                        fontWeight: 600,
+                        background: '#FFFFFF'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="table-action-btn"
+                      title="Copy Password"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(userForm.temporaryPassword);
+                        showToast(`Password copied: ${userForm.temporaryPassword}`);
+                      }}
+                    >
+                      <Copy size={13} />
+                      <span>Copy</span>
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#831843', marginTop: 6 }}>
+                    Employee will use their official email and this temporary password to sign into In2ERP.
+                  </div>
+                </div>
+              )}
+
               {/* Section 2: Primary ERP Security Role */}
               <div className="form-section-title">2. Primary ERP Security Role</div>
               <div className="form-group">
@@ -2609,6 +2764,148 @@ export const MasterSettingsView: React.FC = () => {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          7. MODAL: SET / RESET EMPLOYEE TEMPORARY PASSWORD
+      ───────────────────────────────────────────────────────────── */}
+      {isResetPasswordOpen && resetPasswordUser && (
+        <div className="master-modal-backdrop" onClick={() => setIsResetPasswordOpen(false)}>
+          <div className="master-modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  background: '#FDF2F8',
+                  border: '1px solid #FBCFE8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#6B2144'
+                }}>
+                  <Key size={18} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.05rem', margin: 0, color: '#1E293B' }}>Reset Temporary Password</h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                    {resetPasswordUser.first_name} {resetPasswordUser.last_name} ({resetPasswordUser.email})
+                  </div>
+                </div>
+              </div>
+              <button className="modal-close-btn" onClick={() => setIsResetPasswordOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveResetPassword}>
+              <div className="modal-body-scrollable">
+                <div style={{
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  marginBottom: 16
+                }}>
+                  <div style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.5 }}>
+                    Set a known temporary password for <strong>{resetPasswordUser.first_name} {resetPasswordUser.last_name}</strong>.
+                    Upon saving, the complete login credentials will automatically be copied to your clipboard so you can easily dispatch them to the employee.
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Lock size={13} color="#6B2144" /> New Temporary Password *
+                    </label>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#6B2144',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      onClick={handleGeneratePassword}
+                    >
+                      <Sparkles size={12} /> Auto-Generate
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      required
+                      value={newTempPassword}
+                      onChange={(e) => setNewTempPassword(e.target.value)}
+                      placeholder="e.g. password123"
+                      style={{
+                        flex: 1,
+                        padding: '9px 12px',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: 6,
+                        fontSize: '0.92rem',
+                        fontFamily: 'monospace',
+                        fontWeight: 600,
+                        background: '#FFFFFF'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="table-action-btn"
+                      title="Copy Password"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(newTempPassword);
+                        showToast(`Password copied: ${newTempPassword}`);
+                      }}
+                    >
+                      <Copy size={14} />
+                      <span>Copy</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  background: '#FDF2F8',
+                  borderRadius: 6,
+                  border: '1px solid #FBCFE8',
+                  fontSize: '0.74rem',
+                  color: '#831843'
+                }}>
+                  <Key size={13} />
+                  <span>The employee can immediately login at <strong>http://localhost:5173/login</strong> with this password.</span>
+                </div>
+              </div>
+
+              <div className="modal-form-footer">
+                <button
+                  type="button"
+                  className="table-action-btn"
+                  onClick={() => setIsResetPasswordOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-plum-action"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Key size={14} />
+                  <span>Update Password & Copy Credentials</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

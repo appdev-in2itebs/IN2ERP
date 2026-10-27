@@ -3,7 +3,8 @@ In2IT ERP - Users API Routes
 CRUD operations for user management.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.dependencies import get_current_user, require_permission
@@ -122,3 +123,24 @@ async def delete_user(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="User not found")
     await repo.delete(user)
+
+
+class ResetPasswordRequest(BaseModel):
+    password: str
+
+
+@router.post("/{user_id}/reset-password", response_model=UserResponse)
+async def reset_user_password(
+    user_id: str,
+    data: ResetPasswordRequest,
+    current_user: User = Depends(require_permission("employees.update")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset a user's temporary password (admin action)."""
+    repo = UserRepository(db)
+    user = await repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await repo.update(user, {"hashed_password": hash_password(data.password)})
+    return UserResponse.model_validate(user)

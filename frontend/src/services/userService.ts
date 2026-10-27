@@ -39,4 +39,8 @@ export const userService = {
   getDepartments: async (): Promise<string[]> => {
     return apiClient.get<string[]>('/users/departments');
   },
+
+  resetPassword: async (id: string, password: string): Promise<User> => {
+    return apiClient.post<User>(`/users/${id}/reset-password`, { password });
+  },
 };

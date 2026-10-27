@@ -10,7 +10,7 @@ from app.api.v1.dependencies import get_current_user
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RefreshTokenRequest, RegisterRequest, TokenResponse
-from app.schemas.user import UserResponse, UserWithRoles
+from app.schemas.user import UserResponse, UserWithRoles, UserAppAssignmentDetail
 from app.services.auth_service import AuthService
 from app.services.authorization_service import AuthorizationService
 
@@ -45,7 +45,7 @@ async def get_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get the current authenticated user with roles and permissions."""
+    """Get the current authenticated user with roles, permissions, and app assignments."""
     authz = AuthorizationService(db)
     permissions = await authz.get_user_permissions(current_user.id)
 
@@ -56,6 +56,17 @@ async def get_me(
             "name": ur.role.name,
             "color": ur.role.color,
         })
+
+    assignments_detail = [
+        UserAppAssignmentDetail(
+            application_slug=a.application_slug,
+            application_name=a.application_name,
+            app_role=a.app_role,
+            status=a.status,
+        )
+        for a in current_user.app_assignments
+        if a.status == "active"
+    ]
 
     return UserWithRoles(
         id=current_user.id,
@@ -71,6 +82,9 @@ async def get_me(
         created_at=current_user.created_at,
         updated_at=current_user.updated_at,
         last_login_at=current_user.last_login_at,
+        primary_role=current_user.primary_role,
+        role_names=current_user.role_names,
+        app_assignments=assignments_detail,
         roles=roles,
         permissions=list(permissions),
     )

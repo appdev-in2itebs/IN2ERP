@@ -94,15 +94,10 @@ export const EtherealLaunchpad: React.FC = () => {
     const fetchApps = async () => {
       try {
         const myApps = await applicationService.getMyApplications();
-        // If myApps is empty (e.g. fresh session), fallback to list of active apps
-        if (myApps && myApps.length > 0) {
-          setApps(myApps);
-        } else {
-          const allApps = await applicationService.listApplications({ is_active: true });
-          setApps(allApps);
-        }
+        setApps(myApps || []);
       } catch (err) {
-        console.error('Failed to load apps:', err);
+        console.error('Failed to load user applications:', err);
+        setApps([]);
       } finally {
         setLoading(false);
       }
@@ -391,6 +386,31 @@ export const EtherealLaunchpad: React.FC = () => {
           <div className="launchpad-loading">
             <div className="launchpad-pulse-spinner" />
             <p>Loading enterprise modules...</p>
+          </div>
+        ) : apps.length === 0 ? (
+          <div className="launchpad-container" style={{ textAlign: 'center', padding: '60px 24px' }}>
+            <div style={{
+              width: 64,
+              height: 64,
+              borderRadius: 20,
+              background: 'rgba(255, 255, 255, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.06)'
+            }}>
+              <Layers size={32} color="#6B2144" />
+            </div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#121E3B', margin: '0 0 8px' }}>
+              No ERP Applications Assigned
+            </h2>
+            <p style={{ fontSize: '0.88rem', color: '#64748B', maxWidth: 440, margin: '0 auto 20px', lineHeight: 1.5 }}>
+              Your official account is active, but your administrator has not assigned access to any business applications yet.
+            </p>
+            <div className="launchpad-welcome-text">
+              Welcome, {firstName}
+            </div>
           </div>
         ) : (
           <div className="launchpad-container">
