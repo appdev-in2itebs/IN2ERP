@@ -6,6 +6,7 @@ import { ToastContainer } from '@/components/ToastContainer';
 
 export const AppLayout: React.FC = () => {
   const location = useLocation();
+  const isLaunchpad = location.pathname === '/';
 
   const getPageTitle = (pathname: string) => {
     switch (pathname) {
@@ -25,6 +26,15 @@ export const AppLayout: React.FC = () => {
         return 'Management Portal';
     }
   };
+
+  if (isLaunchpad) {
+    return (
+      <div className="launchpad-fullscreen-shell">
+        <Outlet />
+        <ToastContainer />
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
