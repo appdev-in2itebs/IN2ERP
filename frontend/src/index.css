@@ -3824,4 +3824,462 @@ button, input, select, textarea {
   animation: fadeIn 0.2s ease-out;
 }
 
+/* Sidebar Count Badges & Micro Pills */
+.sidebar-count-badge {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.user-apps-pill-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.app-micro-pill {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.app-micro-pill.crm {
+  background: #FDF2F8;
+  color: #831843;
+}
+
+.app-micro-pill.proj {
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.app-micro-pill.ai {
+  background: #FAF5FF;
+  color: #7E22CE;
+}
+
+.app-category-mini {
+  font-size: 0.72rem;
+  color: #64748B;
+  font-weight: 400;
+}
+
+/* --- Applications & Registry Tab --- */
+.app-registry-info-banner {
+  margin: 14px 20px;
+  padding: 12px 16px;
+  background: #FAF5FF;
+  border: 1px solid #E9D5FF;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.81rem;
+  color: #581C87;
+  line-height: 1.4;
+}
+
+.apps-registry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.app-registry-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.15s ease;
+}
+
+.app-registry-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.app-card-top-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.app-card-badge-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-card-title-group {
+  flex: 1;
+}
+
+.app-card-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.app-card-slug {
+  font-size: 0.73rem;
+  color: #64748B;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.app-category-badge {
+  padding: 2px 8px;
+  background: #F1F5F9;
+  color: #475569;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.app-card-description {
+  font-size: 0.8rem;
+  color: #64748B;
+  line-height: 1.4;
+  margin: 0 0 14px;
+  flex: 1;
+}
+
+.app-card-roles-section {
+  padding: 10px 12px;
+  background: #F8FAFC;
+  border-radius: 6px;
+  border: 1px solid #F1F5F9;
+  margin-bottom: 12px;
+}
+
+.roles-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.roles-title-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.btn-manage-app-roles {
+  background: transparent;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6B2144;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-manage-app-roles:hover {
+  text-decoration: underline;
+}
+
+.app-roles-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.app-role-tag {
+  padding: 2px 7px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.app-card-footer-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #F1F5F9;
+  font-size: 0.74rem;
+}
+
+.license-tag.enterprise {
+  color: #D97706;
+  font-weight: 600;
+}
+
+.license-tag.core {
+  color: #059669;
+  font-weight: 600;
+}
+
+/* Manage App Roles Stack */
+.manage-roles-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.app-role-entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+
+.role-index-number {
+  font-weight: 700;
+  color: #94A3B8;
+  font-size: 0.75rem;
+}
+
+.role-entry-name {
+  font-weight: 600;
+  color: #0F172A;
+  flex: 1;
+  margin-left: 12px;
+}
+
+.role-active-indicator {
+  font-size: 0.72rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.add-role-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-role-input-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.83rem;
+  outline: none;
+}
+
+/* --- Email Templates Tab --- */
+.email-templates-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 480px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.template-selector-list {
+  background: #F8FAFC;
+  border-right: 1px solid #E2E8F0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.template-selector-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  color: #475569;
+}
+
+.template-selector-item:hover {
+  background: #FFFFFF;
+  color: #0F172A;
+  border-color: #E2E8F0;
+}
+
+.template-selector-item.active {
+  background: #FFFFFF;
+  border-color: #6B2144;
+  color: #6B2144;
+  box-shadow: 0 1px 3px rgba(107, 33, 68, 0.1);
+}
+
+.template-item-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.template-item-sub {
+  font-size: 0.72rem;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.template-preview-panel {
+  padding: 24px;
+  background: #FFFFFF;
+}
+
+.template-preview-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.template-preview-header h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0 0 6px;
+}
+
+.template-variable-hint {
+  font-size: 0.78rem;
+  color: #64748B;
+}
+
+.template-variable-hint code {
+  background: #F1F5F9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #6B2144;
+  font-size: 0.74rem;
+}
+
+.template-field-group {
+  margin-bottom: 18px;
+}
+
+.template-field-group label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.template-field-group input,
+.template-field-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  outline: none;
+  font-family: inherit;
+  color: #0F172A;
+}
+
+.template-field-group input:focus,
+.template-field-group textarea:focus {
+  border-color: #6B2144;
+  box-shadow: 0 0 0 3px rgba(107, 33, 68, 0.1);
+}
+
+.template-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* --- Notifications Tab --- */
+.notifications-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.broadcast-composer-card {
+  padding: 20px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+}
+
+.broadcast-composer-card textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.broadcast-footer-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.notifications-history-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.notif-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.notif-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid #F1F5F9;
+  border-radius: 6px;
+  background: #FAFAFC;
+}
+
+.notif-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notif-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.notif-sub {
+  font-size: 0.74rem;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.notif-timestamp {
+  font-size: 0.74rem;
+  color: #94A3B8;
+  white-space: nowrap;
+}
+
+
 
