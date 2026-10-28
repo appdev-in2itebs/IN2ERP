@@ -15,9 +15,9 @@ Safety:
 - Refuses to run unless source and target are at the same Alembic revision.
 - Refuses to write into a target table that already contains rows (nothing is deleted).
 - Copies everything in one transaction; on any error nothing is committed.
-- Never prints credentials.
+- Never prints credentials; sign-in sessions (refresh tokens) are not copied.
 
-Requires a synchronous PostgreSQL driver: pip install psycopg2-binary
+Requires the synchronous PostgreSQL driver: pip install "psycopg[binary]"
 """
 
 import argparse
@@ -27,7 +27,8 @@ from urllib.parse import urlsplit
 
 from sqlalchemy import Boolean, MetaData, create_engine, func, select, text
 
-SKIP_TABLES = {"alembic_version"}
+# Sign-in sessions never move between environments: everyone signs in again on the target.
+SKIP_TABLES = {"alembic_version", "refresh_tokens"}
 
 
 def _masked(url: str) -> str:
@@ -44,7 +45,7 @@ def _revision(conn) -> str | None:
 
 def migrate(sqlite_path: str, target_url: str) -> None:
     source = create_engine(f"sqlite:///{sqlite_path}")
-    target = create_engine(target_url.replace("+asyncpg", ""))
+    target = create_engine(target_url.replace("+asyncpg", "").replace("postgresql://", "postgresql+psycopg://", 1))
     print(f"Source: sqlite:///{sqlite_path}")
     print(f"Target: {_masked(target_url)}")
 
@@ -65,6 +66,7 @@ def migrate(sqlite_path: str, target_url: str) -> None:
             if dst.execute(select(func.count()).select_from(table)).scalar():
                 sys.exit(f"Target table '{table.name}' is not empty; refusing to overwrite.")
 
+        dst.rollback()  # end the read-only autobegun transaction; the copy runs in its own
         with dst.begin():
             for table in tables:
                 src_table = source_meta.tables.get(table.name)

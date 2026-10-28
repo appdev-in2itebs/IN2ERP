@@ -53,7 +53,7 @@ for the SameSite=Strict refresh cookie). Ports are bound to localhost only.
 ## Moving data from SQLite to PostgreSQL
 1. `alembic upgrade head` against the **target** (`DATABASE_URL=postgresql+asyncpg://…`).
 2. `alembic upgrade head` against the **source** SQLite database.
-3. `pip install psycopg2-binary`, then
+3. `pip install "psycopg[binary]"`, then
    `TARGET_DATABASE_URL=postgresql://… python infrastructure/azure/migrate-to-postgres.py --sqlite ./backend/in2it_erp.db`.
    The script refuses to write into non-empty tables and never prints credentials.
 
