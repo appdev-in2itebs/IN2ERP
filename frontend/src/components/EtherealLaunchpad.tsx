@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/stores/AuthContext';
 import { applicationService } from '@/services/applicationService';
-import { Application } from '@/types';
+import { MyApplication } from '@/types';
 import { In2ITMark } from '@/components/In2ITMark';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -41,12 +41,12 @@ export const EtherealLaunchpad: React.FC = () => {
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
 
-  const [apps, setApps] = useState<Application[]>([]);
+  const [apps, setApps] = useState<MyApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [activeModalTab, setActiveModalTab] = useState<'preferences' | 'security'>('preferences');
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [selectedApp, setSelectedApp] = useState<MyApplication | null>(null);
 
   // Appearance & Themes
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -70,7 +70,7 @@ export const EtherealLaunchpad: React.FC = () => {
       notificationChannel: 'email',
       timezone: 'Asia/Kolkata',
       celebrationSound: true,
-      emailSignature: 'Regards,\nElisaya Nayak\nIn2IT Enterprise Business Services',
+      emailSignature: '',
     };
   });
 
@@ -136,13 +136,25 @@ export const EtherealLaunchpad: React.FC = () => {
     return `${f}${l}`;
   };
 
-  const userName = user ? `${user.first_name} ${user.last_name}` : 'Elisaya Nayak';
-  const userRole = user?.designation || (user?.is_superadmin ? 'System Administrator' : 'Sales Manager');
-  const userEmail = user?.email || 'elisaya.nayak@in2itebs.com';
-  const firstName = user?.first_name || 'Elisaya';
+  const userName = user ? `${user.first_name} ${user.last_name}` : '';
+  const userRole = user?.designation || (user?.is_superadmin ? 'System Administrator' : 'Employee');
+  const userEmail = user?.email || '';
+  const firstName = user?.first_name || '';
+
+  // Opens the application in a new tab. Each application signs the employee in through
+  // its own SSO and enforces its own roles; the ERP only links to it once access is verified.
+  const launchApp = (app: MyApplication) => {
+    if (app.access_state !== 'ready' || !app.url) return;
+    if (/^https?:\/\//i.test(app.url)) {
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+    } else if (/^\/(?![/\\])/.test(app.url) && !app.url.includes('\\')) {
+      navigate(app.url); // internal route only; never a protocol-relative or backslash path
+    }
+    setSelectedApp(null);
+  };
 
   // Render App Icon
-  const renderAppIcon = (app: Application) => {
+  const renderAppIcon = (app: MyApplication) => {
     const slug = app.slug.toLowerCase();
     if (slug.includes('crm') || slug.includes('in2crm')) {
       // Exact In2CRM histogram/pipeline icon from screenshot
@@ -183,7 +195,7 @@ export const EtherealLaunchpad: React.FC = () => {
     return <Layers size={34} color="#FFFFFF" strokeWidth={2.2} />;
   };
 
-  const getTileGradient = (app: Application) => {
+  const getTileGradient = (app: MyApplication) => {
     const slug = app.slug.toLowerCase();
     if (slug.includes('crm')) {
       // Exact rich plum/burgundy from screenshot
@@ -441,10 +453,18 @@ export const EtherealLaunchpad: React.FC = () => {
                     {app.description || 'ENTERPRISE MODULE V2.0'}
                   </p>
 
-                  {/* Optional Scoped Role Pill if assigned */}
-                  {app.user_app_role && (
+                  {/* Application roles held, and access state until verified */}
+                  {app.roles.length > 0 && (
                     <div className="app-scoped-role-pill">
-                      <span>{app.user_app_role}</span>
+                      <span>{app.roles.join(' · ')}</span>
+                    </div>
+                  )}
+                  {app.access_state !== 'ready' && (
+                    <div
+                      className="app-scoped-role-pill"
+                      style={{ background: app.access_state === 'failed' ? 'rgba(220,38,38,0.12)' : 'rgba(217,119,6,0.12)' }}
+                    >
+                      <span>{app.access_state === 'failed' ? 'Access failed' : 'Access pending'}</span>
                     </div>
                   )}
                 </div>
@@ -693,7 +713,7 @@ export const EtherealLaunchpad: React.FC = () => {
                 <div>
                   <h3 className="workspace-app-name">{selectedApp.name}</h3>
                   <div className="workspace-app-meta">
-                    {selectedApp.description} • Role: <strong>{selectedApp.user_app_role || userRole}</strong>
+                    {selectedApp.description} • Roles: <strong>{selectedApp.roles.join(', ') || '—'}</strong>
                   </div>
                 </div>
               </div>
@@ -706,62 +726,30 @@ export const EtherealLaunchpad: React.FC = () => {
             </div>
 
             <div className="app-workspace-body">
-              {/* If In2CRM is clicked: showcase live CRM pipeline dashboard */}
-              {selectedApp.slug.includes('crm') ? (
-                <div className="crm-preview-content">
-                  <div className="crm-kpi-grid">
-                    <div className="crm-kpi-card">
-                      <span className="kpi-label">Pipeline Value</span>
-                      <span className="kpi-val">$1,420,000</span>
-                      <span className="kpi-trend positive">+14.2% MoM</span>
-                    </div>
-                    <div className="crm-kpi-card">
-                      <span className="kpi-label">Active Deals</span>
-                      <span className="kpi-val">18</span>
-                      <span className="kpi-trend">In Negotiation</span>
-                    </div>
-                    <div className="crm-kpi-card">
-                      <span className="kpi-label">Win Rate</span>
-                      <span className="kpi-val">68.4%</span>
-                      <span className="kpi-trend positive">Above Target</span>
-                    </div>
-                    <div className="crm-kpi-card">
-                      <span className="kpi-label">Revenue Target</span>
-                      <span className="kpi-val">$850,000</span>
-                      <span className="kpi-trend">Q4 Target</span>
-                    </div>
-                  </div>
-
-                  <div className="crm-stages-flow">
-                    <div className="stage-step active">
-                      <div className="stage-num">01</div>
-                      <div className="stage-name">Qualified Leads (42)</div>
-                    </div>
-                    <div className="stage-step active">
-                      <div className="stage-num">02</div>
-                      <div className="stage-name">Proposal Submitted (12)</div>
-                    </div>
-                    <div className="stage-step active">
-                      <div className="stage-num">03</div>
-                      <div className="stage-name">Final Negotiation (6)</div>
-                    </div>
-                    <div className="stage-step won">
-                      <div className="stage-num">04</div>
-                      <div className="stage-name">Closed Won ($380K)</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="generic-app-preview">
-                  <div className="generic-app-status">
+              <div className="generic-app-preview">
+                <div className="generic-app-status">
+                  {selectedApp.access_state === 'ready' ? (
                     <CheckCircle2 size={36} color="#10B981" />
-                    <h4>Workspace Licensed & Active</h4>
-                    <p>
-                      You are authenticated as <strong>{userName}</strong> ({userRole}) with full operational privileges on {selectedApp.name}.
-                    </p>
-                  </div>
+                  ) : (
+                    <Layers size={36} color={selectedApp.access_state === 'failed' ? '#DC2626' : '#D97706'} />
+                  )}
+                  <h4>
+                    {selectedApp.access_state === 'ready'
+                      ? 'Access verified'
+                      : selectedApp.access_state === 'failed'
+                        ? 'Access could not be set up'
+                        : 'Access is being set up'}
+                  </h4>
+                  <p>
+                    {selectedApp.access_state === 'ready'
+                      ? `${selectedApp.name} confirmed your access. You will sign in to it with your work account; ${selectedApp.name} applies its own permissions for your roles.`
+                      : selectedApp.status_message}
+                  </p>
+                  {selectedApp.access_state === 'ready' && !selectedApp.url && (
+                    <p>No launch address is registered for this application yet. Contact your ERP administrator.</p>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="app-workspace-footer">
@@ -774,12 +762,11 @@ export const EtherealLaunchpad: React.FC = () => {
               <button
                 className="btn-launch-primary"
                 style={{ background: getTileGradient(selectedApp) }}
-                onClick={() => {
-                  alert(`Launching full production instance for ${selectedApp.name}...`);
-                  setSelectedApp(null);
-                }}
+                disabled={selectedApp.access_state !== 'ready' || !selectedApp.url}
+                title={selectedApp.access_state !== 'ready' ? 'Available once your access is verified' : undefined}
+                onClick={() => launchApp(selectedApp)}
               >
-                <span>Enter Workspace</span>
+                <span>Open {selectedApp.name}</span>
                 <ExternalLink size={16} />
               </button>
             </div>

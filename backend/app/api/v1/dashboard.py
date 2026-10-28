@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.dependencies import get_current_user
+from app.api.v1.dependencies import require_permission
 from app.db.database import get_db
 from app.models.user import User
 from app.repositories.application_repository import ApplicationRepository
@@ -29,10 +29,10 @@ class DashboardStats(BaseModel):
 
 @router.get("/stats", response_model=DashboardStats)
 async def get_dashboard_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("employees.read")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get aggregated dashboard statistics."""
+    """Organisation-wide statistics for administrators."""
     user_repo = UserRepository(db)
     app_repo = ApplicationRepository(db)
     audit_repo = AuditRepository(db)

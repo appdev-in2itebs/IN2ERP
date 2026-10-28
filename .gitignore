@@ -80,3 +80,21 @@ lerna-debug.log*
 # Internal skill & prompt assets
 MY_SKILL/
 
+
+# Compiled from vite.config.ts by tsc -b
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Local tool binaries (ngrok agent downloaded by start_tunnel.bat)
+tools/
+
+# Private tunnel settings (Cloudflare tunnel token) read by start_tunnel.bat
+tunnel.local.cmd
+
+# Database backups (contain user data and password hashes)
+*.db.bak*
+backups/
+
+# Internal documents kept out of the public repository
+ERP_AUDIT_REPORT.md
+*.docx

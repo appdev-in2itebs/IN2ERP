@@ -8,7 +8,9 @@ export interface AuditLog {
   resource_id?: string | null;
   details?: string | null;
   ip_address?: string | null;
+  user_agent?: string | null;
   status: 'success' | 'failure';
+  correlation_id?: string | null;
 }
 
 export interface AuditLogListResponse {

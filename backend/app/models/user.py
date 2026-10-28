@@ -6,7 +6,7 @@ Core user entity with support for local auth and future Entra ID integration.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -29,8 +29,21 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_superadmin: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Entra ID fields (future)
+    # Session & credential security
+    # token_version is embedded in JWTs; incrementing it revokes every issued token.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Microsoft Entra identity: object ID (oid) within tenant (tid). Never matched on email alone.
     entra_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    entra_tenant_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -57,6 +70,22 @@ class User(Base):
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def entra_linked(self) -> bool:
+        return bool(self.entra_id)
+
+    def revoke_sessions(self) -> None:
+        """Invalidate every access and refresh token issued to this user."""
+        self.token_version = (self.token_version or 0) + 1
+
+    def is_locked(self, now: datetime) -> bool:
+        if not self.locked_until:
+            return False
+        locked_until = self.locked_until
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+        return locked_until > now
 
     @property
     def primary_role(self) -> str:

@@ -1,183 +1,94 @@
-# In2IT ERP — Enterprise Resource Planning Platform
+# In2IT ERP — Central Application Access Portal
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.3+-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.4+-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![SQLite](https://img.shields.io/badge/Database-SQLite%20(Dev)-003B57?style=flat&logo=sqlite&logoColor=white)](https://sqlite.org/)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20(Prod)-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Azure](https://img.shields.io/badge/Hosting-Microsoft%20Azure-0078D4?style=flat&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
 
-An enterprise-grade, modular Resource Planning platform engineered with **FastAPI**, **React (TypeScript)**, dynamic **Role-Based Access Control (RBAC) with per-user permission overrides**, application lifecycle management, and compliance audit trailing.
+In2ERP is the control plane for employee access to In2IT's independently hosted applications
+(In2CRM, In2Projects, In2HRM, …). An ERP administrator grants and revokes each application's
+**own roles** from one place; connectors apply the change in the target application and the ERP
+shows only what the target has **confirmed**. Each application remains the enforcement point for
+its own permissions.
 
-Designed for rapid local development with **SQLite**, zero-friction migration to **PostgreSQL**, and cloud deployment on **Microsoft Azure**.
+```
+Microsoft Entra ID ─▶ React portal ─▶ FastAPI (authN/authZ, audit) ─▶ PostgreSQL access registry
+                                                     │
+                                       provisioning outbox + worker
+                                                     ▼
+                         connectors (Entra app roles · SCIM · In2ERP provisioning API · manual)
+                                                     ▼
+                         independently hosted applications enforcing their own RBAC
+```
+
+Status of each capability, test results and the external setup still required are in
+[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
 
 ---
 
-## 📂 Project Structure
+## Quick start (local development)
 
-```
-in2it-erp/
-├── frontend/                     # React + TypeScript + Vite SPA
-│   ├── src/
-│   │   ├── assets/              # Static media & assets
-│   │   ├── components/          # Reusable UI (Sidebar, Navbar, Modals, Badges, etc.)
-│   │   ├── layouts/             # AppLayout, AuthLayout
-│   │   ├── views/               # Module pages
-│   │   │   ├── auth/            # Login & Register views
-│   │   │   ├── dashboard/       # Overview KPI metrics & apps launcher
-│   │   │   ├── applications/    # ERP business modules catalog & editor
-│   │   │   ├── employees/       # Staff directory & role grant drawer
-│   │   │   ├── roles/           # RBAC permission matrix & per-user overrides
-│   │   │   ├── assignments/     # Employee-to-application access governance
-│   │   │   └── audit/           # Immutable compliance event trail
-│   │   ├── router/              # Route definitions & permission guards
-│   │   ├── stores/              # Auth & Notification contexts
-│   │   ├── services/            # Typed API clients & service layers
-│   │   ├── composables/         # Custom hooks (useAuth, useNotification)
-│   │   ├── types/               # TypeScript interfaces & models
-│   │   ├── index.css            # Enterprise Vanilla CSS design system
-│   │   └── main.tsx             # Application entry point
-│   ├── package.json
-│   └── vite.config.ts
-├── backend/                      # FastAPI Python Application
-│   ├── app/
-│   │   ├── api/v1/              # REST API controllers & dependencies
-│   │   ├── core/                # Configuration, JWT security, password hashing
-│   │   ├── db/                  # Async database engine & seed fixtures
-│   │   ├── models/              # SQLAlchemy 2.0 ORM models
-│   │   ├── schemas/             # Pydantic v2 schemas
-│   │   ├── repositories/        # Data access layers
-│   │   ├── services/            # Core business logic services
-│   │   └── main.py              # Application factory & lifespan hooks
-│   ├── alembic/                 # Database migrations (SQLite batch & PostgreSQL)
-│   ├── tests/                   # Pytest test suite
-│   ├── alembic.ini
-│   └── pyproject.toml
-├── infrastructure/               # DevOps & Cloud Provisioning
-│   ├── azure/                   # Bicep IaC template & SQLite-to-Postgres migrator
-│   ├── Dockerfile.backend       # Multi-stage production Python container
-│   ├── Dockerfile.frontend      # Multi-stage production Nginx container
-│   ├── docker-compose.yml       # Local multi-container stack
-│   └── nginx.conf               # SPA routing & reverse proxy
-├── docs/                         # Architecture & Integration Guides
-│   ├── architecture.md          # Architectural blueprints & RBAC algorithms
-│   ├── entra-setup.md           # Microsoft Entra ID (Azure AD) SSO setup guide
-│   ├── application-integration.md # Internal ERP module onboarding guide
-│   └── deployment.md            # Local run, PostgreSQL migration & Azure hosting
-├── .env.example                 # Environment configuration template
-├── .env                         # Local development settings (SQLite default)
-└── README.md
-```
+Prerequisites: Python 3.11+, Node.js 20+.
 
----
-
-## ⚡ Quick Start (Local Development)
-
-### 1. Prerequisites
-- **Python 3.11+**
-- **Node.js 18+** & **npm**
-
-### 2. Backend Setup (FastAPI + SQLite)
+### Backend
 ```bash
-# Navigate to backend directory
 cd backend
+python -m venv .venv
+.venv/Scripts/activate            # Windows  (source .venv/bin/activate on Linux/macOS)
+pip install -e ".[dev]"
 
-# Create & activate virtual environment
-python -m venv venv
-.\venv\Scripts\activate   # Windows
-# source venv/bin/activate # Linux / macOS
-
-# Install dependencies
-pip install -e .
-
-# Run dev server
+alembic upgrade head              # create or upgrade the schema (safe on existing databases)
+python -m app.cli bootstrap-admin --email you@in2itebs.com   # first administrator (prompts for a password)
 uvicorn app.main:app --reload --port 8000
 ```
-- Interactive API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
-- The SQLite database `in2it_erp.db` will be initialized and seeded automatically.
 
-### 🔑 Default Credentials
-| Email | Password | Role |
-| :--- | :--- | :--- |
-| `admin@in2it.com` | `admin123` | **Super Admin** |
+There are no default accounts or passwords. `bootstrap-admin` only works while no superadmin
+exists; later administrators are granted in the Admin Console. (Alternatively set
+`SEED_ADMIN_PASSWORD` for the very first start of an empty database.)
 
----
+API docs (development only): http://localhost:8000/docs
 
-### 3. Frontend Setup (React + Vite)
+### Frontend
 ```bash
-# In a new terminal window:
 cd frontend
-
-# Install packages
 npm install
-
-# Start Vite dev server
-npm run dev
-```
-- Access the Portal: [http://localhost:5173](http://localhost:5173)
-
----
-
-## 🛡️ Security & RBAC Model
-
-In2IT ERP incorporates a hybrid security layer:
-- **Roles**: Bundles of permissions (Super Admin, Admin, Manager, Employee, Custom Roles).
-- **Per-User Overrides**: Explicitly **Grant** or **Deny** individual capabilities for specific employees without altering their broad role assignments.
-- **Audit Trails**: Every login, failed attempt, application assignment, or access change is logged with actor email, timestamp, IP address, and payload parameters.
-
----
-
-## 🔄 Migrating from SQLite to PostgreSQL
-
-When ready to switch to PostgreSQL (locally or in Azure):
-
-1. **Install PostgreSQL drivers**:
-   ```bash
-   pip install asyncpg psycopg2-binary
-   ```
-
-2. **Run the automated data migrator**:
-   ```bash
-   python infrastructure/azure/migrate-to-postgres.py \
-     --sqlite sqlite:///./backend/in2it_erp.db \
-     --postgres postgresql://user:password@localhost:5432/in2it_erp
-   ```
-
-3. **Update `.env`**:
-   ```env
-   DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/in2it_erp
-   ```
-
-4. **Run Alembic Migrations**:
-   ```bash
-   cd backend
-   alembic upgrade head
-   ```
-
----
-
-## ☁️ Azure Cloud Deployment
-
-The repository includes a production-ready **Azure Bicep** template and provisioning script:
-
-```powershell
-./infrastructure/azure/deploy.ps1 -ResourceGroup "rg-in2it-erp-prod" -Location "eastus"
+npm run dev                       # http://localhost:5173 (localhost only)
 ```
 
-Provisioned Azure Resources:
-- **Azure App Service (Linux)**: FastAPI Backend API
-- **Azure Static Web App / App Service**: React Frontend
-- **Azure Database for PostgreSQL Flexible Server**: Enterprise PostgreSQL with automated backups
-- **Firewall Rules & Secure Connection Strings**
-
-Refer to [docs/deployment.md](docs/deployment.md) for full instructions.
+### Tests
+```bash
+cd backend && pytest              # backend suite
+cd frontend && npm run type-check && npm run build
+```
 
 ---
 
-## 📚 Documentation
-- [Architecture Blueprint & Data Flows](docs/architecture.md)
-- [Microsoft Entra ID (Azure AD) SSO Setup Guide](docs/entra-setup.md)
-- [Internal ERP Module Integration Guide](docs/application-integration.md)
-- [Operations & Azure Hosting Guide](docs/deployment.md)
+## Security model
+
+- **Identity**: Microsoft Entra ID (OIDC, authorization code + PKCE via MSAL) once configured;
+  local passwords only for break-glass administrators (`LOCAL_AUTH_MODE`).
+- **ERP administration**: ERP roles/permissions in the database. For Entra sessions they also
+  require the `ERP.Admin` app role in the token. Administrators cannot grant permissions they
+  do not hold, act on superadmin accounts, or change their own access.
+- **Application roles**: each application has a role catalogue mirroring its own roles
+  (synchronised from the application where a connector exists). They are not ERP roles.
+- **Provisioning**: grants and revocations are queued in a transactional outbox, applied by
+  connectors, read back and marked `verified`/`revoked` only when the application confirms.
+  Manual applications require an app owner to confirm each change.
+- **Sessions**: short-lived access tokens kept in memory; refresh tokens in an HttpOnly,
+  SameSite=Strict cookie with rotation and replay detection; logout, password change, reset and
+  deactivation revoke all sessions.
+- **Audit**: every administrative and security event, with actor, target, before/after,
+  correlation ID; failed sign-ins persist; the audit table is append-only (ORM guard + DB triggers).
+
+---
+
+## Documentation
+- [Implementation status & handover](docs/IMPLEMENTATION_STATUS.md)
+- [Architecture](docs/architecture.md)
+- [Microsoft Entra ID setup](docs/entra-setup.md)
+- [Integrating an application (connectors & provisioning contract)](docs/application-integration.md)
+- [Deployment, migrations & Azure](docs/deployment.md)
+- [Azure VM deployment with GitHub Actions CI/CD](docs/deployment-azure-vm.md)
+- [Original audit](ERP_AUDIT_REPORT.md)

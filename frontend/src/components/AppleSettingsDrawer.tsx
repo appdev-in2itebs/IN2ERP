@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/stores/AuthContext';
-import { Application } from '@/types';
+import { MyApplication } from '@/types';
 import { In2ITMark } from './In2ITMark';
 import {
   X,
@@ -24,7 +24,7 @@ import {
 interface AppleSettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  applications: Application[];
+  applications: MyApplication[];
 }
 
 export const AppleSettingsDrawer: React.FC<AppleSettingsDrawerProps> = ({
@@ -320,16 +320,9 @@ export const AppleSettingsDrawer: React.FC<AppleSettingsDrawerProps> = ({
                         </div>
                       </div>
 
-                      <span
-                        className={
-                          app.user_app_role?.toLowerCase().includes('lead')
-                            ? 'badge-role-lead'
-                            : app.user_app_role?.toLowerCase().includes('staff') || app.user_app_role?.toLowerCase().includes('requester')
-                            ? 'badge-role-staff'
-                            : 'badge-role-admin'
-                        }
-                      >
-                        {app.user_app_role || 'Member'}
+                      <span className={app.access_state === 'ready' ? 'badge-role-staff' : 'badge-role-lead'}>
+                        {app.roles.join(', ') || 'Member'}
+                        {app.access_state !== 'ready' && ' (pending)'}
                       </span>
                     </div>
                   ))}

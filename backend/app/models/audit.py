@@ -6,14 +6,14 @@ Tracks all significant actions for compliance and debugging.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, String, Text, event
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.db.database import Base
 
 
 class AuditLog(Base):
-    """Immutable audit trail entry."""
+    """Append-only audit trail entry."""
     __tablename__ = "audit_logs"
 
     id: Mapped[str] = mapped_column(
@@ -31,6 +31,15 @@ class AuditLog(Base):
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="success")  # success, failure
+    correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     def __repr__(self) -> str:
         return f"<AuditLog {self.action} {self.resource_type} by {self.user_email}>"
+
+
+@event.listens_for(Session, "before_flush")
+def _audit_logs_are_append_only(session: Session, flush_context, instances) -> None:
+    """Application-level guard; the database enforces the same rule with triggers."""
+    for obj in list(session.dirty) + list(session.deleted):
+        if isinstance(obj, AuditLog) and (obj in session.deleted or session.is_modified(obj)):
+            raise PermissionError("Audit log entries are append-only")

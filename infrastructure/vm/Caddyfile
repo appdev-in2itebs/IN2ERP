@@ -1,0 +1,6 @@
+# SITE_ADDRESS is a DNS name (automatic Let's Encrypt HTTPS) or ":80" (plain HTTP, testing only).
+# Caddy replaces any client-supplied X-Forwarded-For with the real client address.
+{$SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy frontend:8080
+}

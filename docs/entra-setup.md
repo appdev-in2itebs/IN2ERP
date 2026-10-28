@@ -1,80 +1,75 @@
-# Microsoft Entra ID (Azure AD) SSO Integration Guide
+# Microsoft Entra ID setup
 
-This guide details how to transition In2IT ERP from standard email/password authentication to enterprise Single Sign-On (SSO) with **Microsoft Entra ID (formerly Azure Active Directory)**.
+In2ERP uses two app registrations in your tenant, plus an optional third for provisioning.
+All values below are placeholders; nothing in this repository contains real tenant data.
 
----
+| Registration | Purpose | Secret? |
+|---|---|---|
+| **In2ERP API** | The resource the SPA requests tokens for; defines the `access_as_user` scope and the `ERP.Admin` app role | No |
+| **In2ERP Portal (SPA)** | Signs employees in with MSAL (authorization code + PKCE) | No (public client) |
+| **In2ERP Provisioning** *(optional)* | Used by the Entra app-role connector to assign/remove app roles via Microsoft Graph | Yes |
 
-## 1. Azure Portal App Registration
+## 1. API registration
+1. Entra admin center → **App registrations** → **New registration** → name `In2ERP API`,
+   single tenant.
+2. **Expose an API** → set the Application ID URI to `api://<api-client-id>` → add scope
+   `access_as_user` (admins and users can consent).
+3. **App roles** → create role `ERP.Admin`, allowed member types **Users/Groups**. This is the
+   only way an Entra session can exercise ERP administration permissions.
+4. **Manifest** → set `"accessTokenAcceptedVersion": 2`.
+5. Enterprise applications → *In2ERP API* → **Properties** → *Assignment required* = **Yes**,
+   then **Users and groups** → assign the `ERP.Admin` role to the designated ERP administrator(s)
+   (a group is recommended).
 
-1. Sign in to the [Azure Portal](https://portal.azure.com).
-2. Navigate to **Microsoft Entra ID** > **App registrations** > **New registration**.
-3. Fill in the application details:
-   - **Name**: `In2IT-ERP`
-   - **Supported account types**: *Accounts in this organizational directory only (Single tenant)*
-   - **Redirect URI (SPA)**:
-     - Local: `http://localhost:5173`
-     - Production: `https://<your-azure-app>.azurewebsites.net`
-4. Click **Register**.
+## 2. SPA registration
+1. **New registration** → `In2ERP Portal`, single tenant.
+2. **Authentication** → add platform **Single-page application** with redirect URIs
+   `http://localhost:5173/login` (development) and `https://<frontend-host>/login`.
+   Do **not** enable implicit grant.
+3. **API permissions** → *My APIs* → In2ERP API → `access_as_user` → **Grant admin consent**.
+4. Enterprise applications → *In2ERP Portal* → *Assignment required* = **Yes** and assign the
+   employee group(s) allowed to use the portal.
 
----
-
-## 2. Record Credentials
-
-Note down the following values from the **Overview** blade:
-- **Application (client) ID**: (e.g. `11111111-2222-3333-4444-555555555555`)
-- **Directory (tenant) ID**: (e.g. `aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee`)
-
-Under **Certificates & secrets**:
-1. Click **New client secret**.
-2. Set a description (e.g. `In2IT-ERP-Backend-Secret`) and expiration.
-3. Copy the **Value** immediately (this will only be shown once).
-
----
-
-## 3. Configure API Permissions
-
-In the App Registration:
-1. Navigate to **API permissions** > **Add a permission** > **Microsoft Graph**.
-2. Select **Delegated permissions**:
-   - `User.Read` (Sign in and read user profile)
-   - `email` (View users' email address)
-   - `profile` (View users' basic profile)
-3. Click **Grant admin consent for <Your Organization>**.
-
----
-
-## 4. Backend Configuration (`.env`)
-
-Update your environment variables in `.env`:
-
+## 3. Backend configuration
 ```env
-ENTRA_TENANT_ID=your-tenant-id-here
-ENTRA_CLIENT_ID=your-client-id-here
-ENTRA_CLIENT_SECRET=your-client-secret-here
-ENTRA_AUTHORITY=https://login.microsoftonline.com/your-tenant-id-here
+ENTRA_TENANT_ID=<tenant GUID>
+ENTRA_SPA_CLIENT_ID=<SPA client ID>
+ENTRA_API_CLIENT_ID=<API client ID>
+# ENTRA_API_AUDIENCE=api://<API client ID>     (default)
+# ENTRA_API_SCOPE=access_as_user               (default)
+# ENTRA_ADMIN_APP_ROLE=ERP.Admin               (default)
+LOCAL_AUTH_MODE=break_glass_only
+BREAK_GLASS_EMAILS=["<break-glass admin email>"]
 ```
+When these are set, the login page shows **Sign in with Microsoft** and the API accepts Entra
+access tokens. What the API checks: RS256 signature against the tenant's keys, audience
+(the API, never the SPA client — ID tokens are rejected), issuer and `tid` in the allowed
+tenants, expiry, and the `access_as_user` scope. Employees are identified by tenant ID + object ID.
 
-### Backend JWKS Token Verification Flow
+## 4. Linking employees
+- An existing employee record is linked automatically at first Microsoft sign-in when the email
+  matches and the record is not linked yet (`ENTRA_LINK_BY_EMAIL`). A record already linked to a
+  different object ID is never relinked.
+- Administrators can link explicitly in the Admin Console (object ID + tenant ID).
+- Unknown identities are refused and audited. `ENTRA_AUTO_PROVISION=true` would create them with
+  only the Employee role; it is off by default.
+- Signing in never grants administration rights.
 
-The `User` model already includes the `entra_id` column:
-```python
-entra_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
-```
+## 5. Optional: provisioning registration (Entra app-role connector)
+Only for applications whose roles are enforced from Entra app roles.
+1. **New registration** → `In2ERP Provisioning` → **Certificates & secrets** → new client secret.
+2. **API permissions** → Microsoft Graph → *Application* → `AppRoleAssignment.ReadWrite.All`
+   → **Grant admin consent**. This is a high-privilege permission: restrict who can manage this
+   registration and rotate the secret regularly.
+3. Backend: `GRAPH_CLIENT_ID=<client ID>` and the secret in `GRAPH_CLIENT_SECRET`
+   (Key Vault reference in Azure). In the Admin Console set the application's integration to
+   *Microsoft Entra app roles* with its enterprise application (service principal) object ID.
 
-When Entra ID is enabled:
-1. The frontend authenticates via MSAL (`@azure/msal-react`).
-2. The frontend sends the Entra `id_token` or `access_token` to `/api/v1/auth/entra-callback`.
-3. The backend fetches the public keys from `https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys` to verify token authenticity.
-4. If the user doesn't exist locally, they are automatically provisioned with the default **Employee** role.
+## 6. MFA and Conditional Access
+Configure in Entra (not in In2ERP): require MFA for the In2ERP Portal and In2ERP API enterprise
+applications, and stricter policies (compliant device, sign-in risk) for the `ERP.Admin` group.
 
----
-
-## 5. Frontend MSAL Configuration
-
-When ready to enable in the frontend:
-1. Install MSAL packages:
-   ```bash
-   npm install @azure/msal-browser @azure/msal-react
-   ```
-2. Initialize `PublicClientApplication` with your client and tenant IDs.
-3. Add a "Sign in with Microsoft 365" button on `LoginView.tsx`.
+## 7. Break-glass account
+Keep one local administrator listed in `BREAK_GLASS_EMAILS` with a long random password stored
+offline (e.g. sealed envelope / password vault with dual control). Review its audit entries
+(`login`, `login_failed`) regularly and rotate its password after every use.

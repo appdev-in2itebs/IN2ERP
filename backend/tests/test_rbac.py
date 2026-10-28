@@ -1,13 +1,15 @@
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import ADMIN_PASSWORD
+
 
 @pytest.mark.asyncio
 async def test_list_roles_and_permissions(client: AsyncClient):
     # Login as admin
     login_res = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@in2it.com", "password": "admin123"},
+        json={"email": "admin@in2it.com", "password": ADMIN_PASSWORD},
     )
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -33,7 +35,7 @@ async def test_list_roles_and_permissions(client: AsyncClient):
 async def test_create_and_delete_custom_role(client: AsyncClient):
     login_res = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@in2it.com", "password": "admin123"},
+        json={"email": "admin@in2it.com", "password": ADMIN_PASSWORD},
     )
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

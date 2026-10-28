@@ -1,0 +1,8 @@
+# Scripts and configs that run on Linux must keep LF line endings.
+*.sh        text eol=lf
+Caddyfile   text eol=lf
+*.yml       text eol=lf
+*.template  text eol=lf
+# Windows launcher
+*.bat       text eol=crlf
+*.cmd       text eol=crlf

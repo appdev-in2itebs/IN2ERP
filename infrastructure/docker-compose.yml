@@ -1,52 +1,63 @@
-version: '3.8'
-
+# Local container stack. Secrets come from the environment (or a .env next to this file);
+# compose refuses to start when a required one is missing.
+#   JWT_SECRET_KEY, SECRET_KEY   - random values, at least 32 characters
+#   SEED_ADMIN_PASSWORD          - optional; otherwise run `docker compose run --rm backend python -m app.cli bootstrap-admin --email <you>`
 services:
+  migrate:
+    build:
+      context: ../backend
+      dockerfile: ../infrastructure/Dockerfile.backend
+    command: ["alembic", "upgrade", "head"]
+    environment: &backend-env
+      APP_ENV: development
+      DATABASE_URL: sqlite+aiosqlite:///./data/in2it_erp.db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      CORS_ORIGINS: '["http://localhost:8080"]'
+      TRUST_PROXY_HEADERS: "true"
+      REFRESH_COOKIE_SECURE: "false"
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    volumes:
+      - backend-data:/app/data
+
   backend:
     build:
       context: ../backend
       dockerfile: ../infrastructure/Dockerfile.backend
-    container_name: in2it-erp-backend
-    ports:
-      - "8000:8000"
-    environment:
-      - APP_NAME=In2IT-ERP
-      - APP_ENV=development
-      - DEBUG=true
-      - SECRET_KEY=docker-secret-key-change-me
-      - DATABASE_URL=sqlite+aiosqlite:///./data/in2it_erp.db
-      # To switch to PostgreSQL:
-      # - DATABASE_URL=postgresql+asyncpg://erpuser:erppassword@postgres:5432/in2it_erp
-      - JWT_SECRET_KEY=docker-jwt-secret-key
-      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://localhost"]
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - backend-data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
     restart: unless-stopped
-    # depends_on:
-    #   - postgres
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: ../infrastructure/Dockerfile.frontend
-    container_name: in2it-erp-frontend
-    ports:
-      - "80:80"
-      - "3000:80"
+      context: ..
+      dockerfile: infrastructure/Dockerfile.frontend
+    environment:
+      API_UPSTREAM: http://backend:8000
+      API_HOST: backend
     depends_on:
       - backend
+    ports:
+      - "127.0.0.1:8080:8080"
     restart: unless-stopped
 
-  # Optional PostgreSQL container for testing production-like database locally
+  # Optional PostgreSQL for production-like testing: docker compose --profile postgres up
+  # then point DATABASE_URL at postgresql+asyncpg://erpuser:${POSTGRES_PASSWORD}@postgres:5432/in2it_erp
   postgres:
     image: postgres:16-alpine
-    container_name: in2it-erp-postgres
     profiles: ["postgres"]
     environment:
       POSTGRES_USER: erpuser
-      POSTGRES_PASSWORD: erppassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: in2it_erp
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped

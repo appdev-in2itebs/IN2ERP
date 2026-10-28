@@ -1,19 +1,21 @@
-# Multi-stage Dockerfile for React Vite Frontend
-FROM node:20-alpine as builder
+# React + Vite frontend served by unprivileged nginx.
+# Build from the repository root:  docker build -f infrastructure/Dockerfile.frontend .
+FROM node:20-alpine AS builder
 
 WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 
-COPY package.json package-lock.json* ./
-RUN npm install
-
-COPY . .
+COPY frontend/ ./
 RUN npm run build
 
-FROM nginx:alpine as runner
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS runner
 
+# Rendered to /etc/nginx/conf.d/default.conf at start with API_UPSTREAM / API_HOST
+COPY infrastructure/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY infrastructure/nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+ENV API_UPSTREAM=http://backend:8000 \
+    API_HOST=backend
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 8080

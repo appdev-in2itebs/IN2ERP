@@ -1,42 +1,51 @@
-# In2IT ERP - Azure Deployment Script (PowerShell)
+# In2IT ERP - Azure provisioning (PowerShell)
+#
+# Previews by default (what-if). Pass -Apply to deploy. Never prints secrets.
+# Prerequisites: az login; an Azure Container Registry with the two images pushed;
+# Entra app registrations created (docs/entra-setup.md).
 param(
-    [string]$ResourceGroup = "rg-in2it-erp-prod",
-    [string]$Location = "eastus",
-    [string]$DbAdminUser = "in2itadmin",
-    [string]$DbAdminPassword = ""
+    [Parameter(Mandatory)] [string]$ResourceGroup,
+    [Parameter(Mandatory)] [string]$Location,
+    [Parameter(Mandatory)] [string]$AcrName,
+    [Parameter(Mandatory)] [string]$BackendImage,
+    [Parameter(Mandatory)] [string]$FrontendImage,
+    [Parameter(Mandatory)] [string]$EntraTenantId,
+    [Parameter(Mandatory)] [string]$EntraSpaClientId,
+    [Parameter(Mandatory)] [string]$EntraApiClientId,
+    [string]$BreakGlassEmailsJson = '[]',
+    [switch]$Apply
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host "  In2IT ERP - Azure Cloud Provisioning Tool  " -ForegroundColor Cyan
-Write-Host "=============================================" -ForegroundColor Cyan
-
-if (-not $DbAdminPassword) {
-    $DbAdminPassword = Read-Host "Enter PostgreSQL Administrator Password" -AsSecureString
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($DbAdminPassword)
-    $DbAdminPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+function New-RandomSecret {
+    $bytes = New-Object byte[] 48
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    [Convert]::ToBase64String($bytes)
 }
 
-# 1. Ensure Resource Group exists
-Write-Host "`n1. Verifying Azure Resource Group: $ResourceGroup..." -ForegroundColor Yellow
+$securePassword = Read-Host "PostgreSQL administrator password" -AsSecureString
+$dbPassword = [System.Net.NetworkCredential]::new('', $securePassword).Password
+
+$params = @(
+    "acrName=$AcrName", "backendImage=$BackendImage", "frontendImage=$FrontendImage",
+    "dbAdminPassword=$dbPassword", "jwtSecretKey=$(New-RandomSecret)", "appSecretKey=$(New-RandomSecret)",
+    "entraTenantId=$EntraTenantId", "entraSpaClientId=$EntraSpaClientId",
+    "entraApiClientId=$EntraApiClientId", "breakGlassEmailsJson=$BreakGlassEmailsJson"
+)
+
 az group create --name $ResourceGroup --location $Location --output none
 
-# 2. Deploy Bicep template
-Write-Host "2. Deploying Azure Infrastructure via Bicep..." -ForegroundColor Yellow
-$deployResult = az deployment group create `
-    --resource-group $ResourceGroup `
-    --template-file ./infrastructure/azure/azure-deploy.bicep `
-    --parameters dbAdminUser=$DbAdminUser dbAdminPassword=$DbAdminPassword `
-    --output json | ConvertFrom-Json
+if (-not $Apply) {
+    Write-Host "Previewing changes (what-if). Re-run with -Apply to deploy." -ForegroundColor Yellow
+    az deployment group what-if --resource-group $ResourceGroup `
+        --template-file ./infrastructure/azure/azure-deploy.bicep --parameters $params
+    return
+}
 
-$backendUrl = $deployResult.properties.outputs.backendUrl.value
-$frontendUrl = $deployResult.properties.outputs.frontendUrl.value
-$postgresHost = $deployResult.properties.outputs.postgresHost.value
+az deployment group create --resource-group $ResourceGroup `
+    --template-file ./infrastructure/azure/azure-deploy.bicep --parameters $params `
+    --query "properties.outputs" --output json
 
-Write-Host "`n Deployment Successful!" -ForegroundColor Green
-Write-Host "   Backend API URL:  $backendUrl"
-Write-Host "   Frontend Web URL: $frontendUrl"
-Write-Host "   PostgreSQL Host:  $postgresHost"
-Write-Host "`nNext Step: Run migration script to move local SQLite records to Azure PostgreSQL:"
-Write-Host "   python infrastructure/azure/migrate-to-postgres.py --postgres postgresql://${DbAdminUser}:${DbAdminPassword}@${postgresHost}:5432/in2it_erp"
+Write-Host "Next: run 'alembic upgrade head' against the new database from inside the VNet." -ForegroundColor Cyan
+Write-Host "See docs/deployment.md."

@@ -2,45 +2,45 @@ import React, { useEffect, useState } from 'react';
 import { assignmentService } from '@/services/assignmentService';
 import { userService } from '@/services/userService';
 import { applicationService } from '@/services/applicationService';
-import { Assignment, User, Application, AssignmentCreatePayload } from '@/types';
+import { errorMessage } from '@/services/apiClient';
+import { Application, Assignment, PlannedChange, PROVISIONING_LABELS, User } from '@/types';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Modal } from '@/components/Modal';
 import { useNotification } from '@/stores/NotificationContext';
 import { useAuth } from '@/stores/AuthContext';
-import {
-  UserCheck,
-  Plus,
-  Search,
-  Grid,
-  Trash2,
-  Calendar,
-  FileText,
-  AlertCircle,
-  Shield,
-  Edit2,
-} from 'lucide-react';
+import { Plus, Grid, Trash2, AlertCircle, Shield, RotateCcw, CheckCircle2, PlayCircle } from 'lucide-react';
+
+const TONE_BADGE = { ok: 'badge-success', wait: 'badge-primary', warn: 'badge-warning', bad: 'badge-danger', muted: 'badge-neutral' };
+
+interface GrantForm {
+  application_id: string;
+  app_role_id: string;
+  expires_at: string;
+  notes: string;
+}
+
+export const ProvisioningBadge: React.FC<{ assignment: Assignment }> = ({ assignment }) => {
+  const meta = PROVISIONING_LABELS[assignment.provisioning_status] ?? { label: assignment.provisioning_status, tone: 'muted' };
+  return (
+    <span className={`badge ${TONE_BADGE[meta.tone]}`} title={assignment.last_error || undefined}>
+      {meta.label}
+    </span>
+  );
+};
 
 export const AssignmentsView: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [apps, setApps] = useState<Application[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [userAssignments, setUserAssignments] = useState<Assignment[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
-  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
-  const [editAppRole, setEditAppRole] = useState('Member');
-
-  const [createForm, setCreateForm] = useState<AssignmentCreatePayload>({
-    user_id: '',
-    application_id: '',
-    app_role: 'Project Lead',
-    notes: '',
-    expires_at: null,
-  });
+  const [grantForm, setGrantForm] = useState<GrantForm>({ application_id: '', app_role_id: '', expires_at: '', notes: '' });
+  const [review, setReview] = useState<PlannedChange[] | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const { success, error } = useNotification();
   const { hasPermission } = useAuth();
@@ -53,25 +53,21 @@ export const AssignmentsView: React.FC = () => {
       ]);
       setUsers(userResp.users);
       setApps(appList);
-
-      if (userResp.users.length > 0) {
-        setSelectedUser(userResp.users[0].id);
-      }
-    } catch (err: any) {
-      error(err.message || 'Failed to load initial data');
+      if (userResp.users.length > 0) setSelectedUser(userResp.users[0].id);
+    } catch (err) {
+      error(errorMessage(err, 'Failed to load employees and applications'));
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchAssignments = async (userId: string) => {
+  const fetchAssignments = async (userId: string, history = showHistory) => {
     if (!userId) return;
     setAssignmentsLoading(true);
     try {
-      const data = await assignmentService.getUserAssignments(userId);
-      setUserAssignments(data);
-    } catch (err: any) {
-      error(err.message || 'Failed to load assignments');
+      setUserAssignments(await assignmentService.getUserAssignments(userId, history));
+    } catch (err) {
+      error(errorMessage(err, 'Failed to load assignments'));
     } finally {
       setAssignmentsLoading(false);
     }
@@ -82,85 +78,127 @@ export const AssignmentsView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedUser) {
-      fetchAssignments(selectedUser);
-    }
-  }, [selectedUser]);
+    if (selectedUser) fetchAssignments(selectedUser);
+  }, [selectedUser, showHistory]);
+
+  const selectedApp = apps.find((a) => a.id === grantForm.application_id);
 
   const handleOpenAssign = () => {
-    setCreateForm({
-      user_id: selectedUser || users[0]?.id || '',
-      application_id: apps[0]?.id || '',
-      app_role: 'Project Lead',
+    const app = apps[0];
+    setGrantForm({
+      application_id: app?.id || '',
+      app_role_id: app?.roles.find((r) => r.is_default)?.id || app?.roles[0]?.id || '',
+      expires_at: '',
       notes: '',
-      expires_at: null,
     });
+    setReview(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEditRole = (assignment: Assignment) => {
-    setEditingAssignment(assignment);
-    setEditAppRole(assignment.app_role || 'Member');
-    setIsEditModalOpen(true);
-  };
+  const grantRequest = (dryRun: boolean) =>
+    assignmentService.changeAccess(selectedUser, {
+      grants: [
+        {
+          application_id: grantForm.application_id,
+          app_role_id: grantForm.app_role_id,
+          expires_at: grantForm.expires_at ? new Date(`${grantForm.expires_at}T23:59:59`).toISOString() : null,
+          notes: grantForm.notes || null,
+        },
+      ],
+      revokes: [],
+      dry_run: dryRun,
+    });
 
-  const handleUpdateRole = async (e: React.FormEvent) => {
+  const handleReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingAssignment) return;
+    setSubmitting(true);
     try {
-      await assignmentService.updateAssignment(editingAssignment.id, {
-        app_role: editAppRole,
-      });
-      success(`Updated role to "${editAppRole}" for ${editingAssignment.application_name}`);
-      setIsEditModalOpen(false);
-      fetchAssignments(selectedUser);
-    } catch (err: any) {
-      error(err.message || 'Failed to update application role');
+      setReview((await grantRequest(true)).changes);
+    } catch (err) {
+      error(errorMessage(err, 'The change was rejected'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleCreateAssignment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleConfirm = async () => {
+    setSubmitting(true);
     try {
-      await assignmentService.createAssignment(createForm);
-      success('Application granted to employee');
+      const result = await grantRequest(false);
+      const status = result.assignments[0] ? PROVISIONING_LABELS[result.assignments[0].provisioning_status].label : '';
+      success(`Grant recorded. Provisioning status: ${status}`);
       setIsModalOpen(false);
-      fetchAssignments(createForm.user_id);
-    } catch (err: any) {
-      error(err.message || 'Failed to assign application');
+      fetchAssignments(selectedUser);
+    } catch (err) {
+      error(errorMessage(err, 'Failed to grant access'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteAssignment = async (assignment: Assignment) => {
-    if (!window.confirm(`Revoke access to ${assignment.application_name || 'this module'}?`)) return;
+  const runAction = async (label: string, action: () => Promise<Assignment>) => {
     try {
-      await assignmentService.deleteAssignment(assignment.id);
-      success('Access revoked');
+      const updated = await action();
+      success(`${label}: ${PROVISIONING_LABELS[updated.provisioning_status].label}`);
       fetchAssignments(selectedUser);
-    } catch (err: any) {
-      error(err.message || 'Failed to delete assignment');
+    } catch (err) {
+      error(errorMessage(err, `${label} failed`));
+    }
+  };
+
+  const handleRevoke = (a: Assignment) => {
+    if (!window.confirm(`Revoke ${a.app_role} in ${a.application_name}? Access is removed in the ERP now; the application confirms the removal separately.`)) return;
+    runAction('Revocation started', () => assignmentService.revokeAssignment(a.id));
+  };
+
+  const handleConfirmManual = (a: Assignment) => {
+    const note = window.prompt(
+      `Confirm that ${a.status === 'active' ? 'this role was granted' : 'this role was removed'} in ${a.application_name}. Optional note:`,
+      '',
+    );
+    if (note === null) return;
+    runAction('Confirmed', () => assignmentService.confirmManual(a.id, note || undefined));
+  };
+
+  const handleRunQueue = async () => {
+    try {
+      const result = await assignmentService.runProvisioning();
+      const summary = Object.entries(result.jobs).map(([k, v]) => `${v} ${k}`).join(', ') || 'no jobs due';
+      success(`${summary}; ${result.expired} expired`, 'Provisioning queue processed');
+      fetchAssignments(selectedUser);
+    } catch (err) {
+      error(errorMessage(err, 'Could not process the queue'));
     }
   };
 
   const currentUserObj = users.find((u) => u.id === selectedUser);
+  const activeCount = userAssignments.filter((a) => a.status === 'active').length;
 
-  if (loading) return <LoadingSpinner message="Loading user access telemetry..." />;
+  if (loading) return <LoadingSpinner message="Loading user access..." />;
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Application Assignments</h1>
+          <h1 className="page-title">Application Access</h1>
           <p className="page-subtitle">
-            Grant, supervise, and revoke employee entitlements to business modules
+            Grant and revoke employees' application roles and follow their confirmation in each application
           </p>
         </div>
-        {hasPermission('assignments.create') && (
-          <button className="btn btn-primary" onClick={handleOpenAssign}>
-            <Plus size={18} />
-            <span>Assign Module</span>
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {hasPermission('assignments.update') && (
+            <button className="btn btn-secondary" onClick={handleRunQueue} title="Deliver queued changes to connected applications now">
+              <PlayCircle size={18} />
+              <span>Process queue now</span>
+            </button>
+          )}
+          {hasPermission('assignments.create') && (
+            <button className="btn btn-primary" onClick={handleOpenAssign} disabled={!selectedUser}>
+              <Plus size={18} />
+              <span>Grant Role</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 24, alignItems: 'start' }}>
@@ -168,9 +206,6 @@ export const AssignmentsView: React.FC = () => {
         <div className="table-card">
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Select Employee</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Choose an employee to view and manage assigned applications
-            </p>
           </div>
           <div style={{ maxHeight: '600px', overflowY: 'auto', padding: 8 }}>
             {users.map((u) => {
@@ -189,7 +224,7 @@ export const AssignmentsView: React.FC = () => {
                     alignItems: 'center',
                     gap: 12,
                     marginBottom: 4,
-                    transition: 'all 0.15s ease',
+                    opacity: u.is_active ? 1 : 0.55,
                   }}
                 >
                   <div
@@ -209,11 +244,11 @@ export const AssignmentsView: React.FC = () => {
                     {u.first_name[0]}
                   </div>
                   <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: isSelected ? '#3730a3' : 'var(--text-main)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {u.first_name} {u.last_name}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      {u.department || 'General'}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {u.is_active ? u.department || 'General' : 'Deactivated'}
                     </div>
                   </div>
                 </div>
@@ -222,7 +257,7 @@ export const AssignmentsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Assigned Applications View */}
+        {/* Assignments */}
         <div className="table-card">
           <div
             style={{
@@ -231,51 +266,42 @@ export const AssignmentsView: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              gap: 12,
             }}
           >
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                Assigned Modules for {currentUserObj ? `${currentUserObj.first_name} ${currentUserObj.last_name}` : 'Employee'}
+                {currentUserObj ? `${currentUserObj.first_name} ${currentUserObj.last_name}` : 'Employee'}
               </h3>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {currentUserObj?.email}
-              </span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{currentUserObj?.email}</span>
             </div>
-            <span className="badge badge-primary">
-              {userAssignments.length} Modules Assigned
-            </span>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <label style={{ fontSize: '0.8rem', display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="checkbox" checked={showHistory} onChange={(e) => setShowHistory(e.target.checked)} />
+                Show revoked & expired
+              </label>
+              <span className="badge badge-primary">{activeCount} active roles</span>
+            </div>
           </div>
 
           {assignmentsLoading ? (
-            <LoadingSpinner message="Fetching user application assignments..." />
+            <LoadingSpinner message="Fetching application roles..." />
           ) : userAssignments.length === 0 ? (
             <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <AlertCircle size={36} color="var(--text-dim)" style={{ margin: '0 auto 12px' }} />
-              <h4>No Business Applications Assigned</h4>
-              <p style={{ fontSize: '0.85rem', marginTop: 4 }}>
-                This employee has not been allocated access to any internal enterprise modules yet.
-              </p>
-              {hasPermission('assignments.create') && (
-                <button
-                  className="btn btn-primary btn-sm"
-                  style={{ marginTop: 16 }}
-                  onClick={handleOpenAssign}
-                >
-                  Assign First Application
-                </button>
-              )}
+              <h4>No application roles</h4>
+              <p style={{ fontSize: '0.85rem', marginTop: 4 }}>This employee holds no application roles.</p>
             </div>
           ) : (
             <div className="table-container">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Application Module</th>
-                    <th>Application Role</th>
-                    <th>Status</th>
-                    <th>Assigned Date</th>
+                    <th>Application</th>
+                    <th>Role</th>
+                    <th>Access</th>
+                    <th>In application</th>
                     <th>Expires</th>
-                    <th>Notes</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
@@ -285,64 +311,41 @@ export const AssignmentsView: React.FC = () => {
                       <td style={{ fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Grid size={16} color="var(--primary)" />
-                          <span>{a.application_name || 'Business Module'}</span>
+                          <span>{a.application_name}</span>
                         </div>
                       </td>
-
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span
-                            className={
-                              a.app_role?.toLowerCase().includes('lead')
-                                ? 'badge-role-lead'
-                                : a.app_role?.toLowerCase().includes('staff') || a.app_role?.toLowerCase().includes('requester')
-                                ? 'badge-role-staff'
-                                : 'badge-role-admin'
-                            }
-                          >
-                            <Shield size={11} />
-                            <span>{a.app_role || 'Member'}</span>
-                          </span>
-
-                          {hasPermission('assignments.update') && (
-                            <button
-                              className="btn-icon"
-                              title="Edit Application Role"
-                              onClick={() => handleOpenEditRole(a)}
-                              style={{ color: '#3F75A3', padding: '2px 4px' }}
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-
-                      <td>
-                        <span className={`badge ${a.status === 'active' ? 'badge-success' : 'badge-warning'}`}>
-                          {a.status}
+                        <span className="badge-role-admin">
+                          <Shield size={11} />
+                          <span>{a.app_role}</span>
                         </span>
                       </td>
-
-                      <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        {new Date(a.assigned_at).toLocaleDateString()}
+                      <td>
+                        <span className={`badge ${a.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>{a.status}</span>
                       </td>
-
-                      <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        {a.expires_at ? new Date(a.expires_at).toLocaleDateString() : 'Permanent'}
+                      <td>
+                        <ProvisioningBadge assignment={a} />
+                        {a.last_error && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--danger)', marginTop: 4, maxWidth: 260 }}>{a.last_error}</div>
+                        )}
                       </td>
-
                       <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        {a.notes || '—'}
+                        {a.expires_at ? new Date(a.expires_at).toLocaleDateString() : 'No expiry'}
                       </td>
-
-                      <td style={{ textAlign: 'right' }}>
-                        {hasPermission('assignments.delete') && (
-                          <button
-                            className="btn-icon"
-                            title="Revoke access"
-                            onClick={() => handleDeleteAssignment(a)}
-                            style={{ color: 'var(--danger)' }}
-                          >
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {hasPermission('assignments.update') && a.provisioning_status === 'manual_action_required' && (
+                          <button className="btn-icon" title="Confirm the app owner applied this change" onClick={() => handleConfirmManual(a)}>
+                            <CheckCircle2 size={15} />
+                          </button>
+                        )}
+                        {hasPermission('assignments.update') &&
+                          (a.provisioning_status === 'failed' || a.provisioning_status === 'reconciliation_required') && (
+                            <button className="btn-icon" title="Retry provisioning" onClick={() => runAction('Retry queued', () => assignmentService.retry(a.id))}>
+                              <RotateCcw size={15} />
+                            </button>
+                          )}
+                        {hasPermission('assignments.delete') && a.status === 'active' && (
+                          <button className="btn-icon" title="Revoke role" onClick={() => handleRevoke(a)} style={{ color: 'var(--danger)' }}>
                             <Trash2 size={15} />
                           </button>
                         )}
@@ -356,145 +359,113 @@ export const AssignmentsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Assign Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Assign Application Module"
-      >
-        <form onSubmit={handleCreateAssignment}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label">Employee</label>
-              <select
-                className="form-control"
-                value={createForm.user_id}
-                onChange={(e) => setCreateForm({ ...createForm, user_id: e.target.value })}
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.first_name} {u.last_name} ({u.email})
-                  </option>
-                ))}
-              </select>
+      {/* Grant Modal: choose → review (server dry run) → confirm */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={review ? 'Review change' : 'Grant Application Role'}>
+        {review ? (
+          <div>
+            <div className="modal-body">
+              <p style={{ fontSize: '0.86rem', marginBottom: 12 }}>
+                For <strong>{currentUserObj?.first_name} {currentUserObj?.last_name}</strong>:
+              </p>
+              {review.map((c) => (
+                <div key={`${c.application_id}-${c.app_role_id}`} style={{ padding: 12, border: '1px solid var(--border-subtle)', borderRadius: 10, marginBottom: 8 }}>
+                  <div style={{ fontWeight: 600 }}>
+                    {c.action === 'grant' ? 'Grant' : 'Revoke'} {c.app_role} in {c.application_name}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>{c.outcome}</div>
+                </div>
+              ))}
             </div>
-
-            <div className="form-group">
-              <label className="form-label">Application Module</label>
-              <select
-                className="form-control"
-                value={createForm.application_id}
-                onChange={(e) => setCreateForm({ ...createForm, application_id: e.target.value })}
-              >
-                {apps.map((app) => (
-                  <option key={app.id} value={app.id}>
-                    {app.name} ({app.category})
-                  </option>
-                ))}
-              </select>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setReview(null)}>
+                Back
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleConfirm} disabled={submitting}>
+                Confirm
+              </button>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">Application-Specific Access Role</label>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-                Select or customize the specific role this employee will hold within this application:
+          </div>
+        ) : (
+          <form onSubmit={handleReview}>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Application</label>
+                <select
+                  className="form-control"
+                  value={grantForm.application_id}
+                  onChange={(e) => {
+                    const app = apps.find((a) => a.id === e.target.value);
+                    setGrantForm({
+                      ...grantForm,
+                      application_id: e.target.value,
+                      app_role_id: app?.roles.find((r) => r.is_default)?.id || app?.roles[0]?.id || '',
+                    });
+                  }}
+                >
+                  {apps.map((app) => (
+                    <option key={app.id} value={app.id}>
+                      {app.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                {['Project Lead', 'Manager / Approver', 'Requester / Staff', 'Administrator', 'Member'].map((rolePreset) => (
-                  <button
-                    key={rolePreset}
-                    type="button"
-                    className={`btn btn-sm ${createForm.app_role === rolePreset ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ fontSize: '0.74rem', padding: '4px 8px' }}
-                    onClick={() => setCreateForm({ ...createForm, app_role: rolePreset })}
+
+              <div className="form-group">
+                <label className="form-label">Role in {selectedApp?.name || 'application'}</label>
+                {selectedApp && selectedApp.roles.length === 0 ? (
+                  <p style={{ fontSize: '0.82rem', color: 'var(--danger)' }}>
+                    This application has no roles in its catalogue yet. Add or sync its roles first.
+                  </p>
+                ) : (
+                  <select
+                    className="form-control"
+                    required
+                    value={grantForm.app_role_id}
+                    onChange={(e) => setGrantForm({ ...grantForm, app_role_id: e.target.value })}
                   >
-                    {rolePreset}
-                  </button>
-                ))}
+                    {selectedApp?.roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                        {r.sync_status === 'missing' ? ' (no longer in app)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="e.g. Project Lead, Requester / Staff, Reviewer..."
-                value={createForm.app_role || ''}
-                onChange={(e) => setCreateForm({ ...createForm, app_role: e.target.value })}
-                required
-              />
-            </div>
 
-            <div className="form-group">
-              <label className="form-label">Notes / Purpose</label>
-              <textarea
-                className="form-control"
-                rows={2}
-                placeholder="Business rationale or department requirement..."
-                value={createForm.notes || ''}
-                onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-              />
-            </div>
-          </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Expires (optional)</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={grantForm.expires_at}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setGrantForm({ ...grantForm, expires_at: e.target.value })}
+                  />
+                </div>
+              </div>
 
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Grant Module Access
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit Role Modal */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title={`Change Role: ${editingAssignment?.application_name || 'Application'}`}
-      >
-        <form onSubmit={handleUpdateRole}>
-          <div className="modal-body">
-            <div style={{ marginBottom: 14, fontSize: '0.86rem', color: 'var(--text-muted)' }}>
-              Updating application role for <strong>{currentUserObj?.first_name} {currentUserObj?.last_name}</strong> in module <strong>{editingAssignment?.application_name}</strong>.
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Select Predefined Role</label>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                {['Project Lead', 'Manager / Approver', 'Requester / Staff', 'Administrator', 'Member', 'Auditor / Read-Only'].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    className={`btn btn-sm ${editAppRole === preset ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-                    onClick={() => setEditAppRole(preset)}
-                  >
-                    {preset}
-                  </button>
-                ))}
+              <div className="form-group">
+                <label className="form-label">Notes / Purpose</label>
+                <textarea
+                  className="form-control"
+                  rows={2}
+                  value={grantForm.notes}
+                  onChange={(e) => setGrantForm({ ...grantForm, notes: e.target.value })}
+                />
               </div>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">Application Role Title</label>
-              <input
-                type="text"
-                className="form-control"
-                value={editAppRole}
-                onChange={(e) => setEditAppRole(e.target.value)}
-                required
-              />
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={submitting || !grantForm.app_role_id}>
+                Review change
+              </button>
             </div>
-          </div>
-
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={() => setIsEditModalOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Save Application Role
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
       </Modal>
     </div>
   );

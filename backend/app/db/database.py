@@ -17,7 +17,7 @@ if settings.is_sqlite:
 
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
+    echo=settings.SQL_ECHO,
     **engine_kwargs,
 )
 
@@ -46,7 +46,12 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 
+def get_session_factory() -> async_sessionmaker:
+    """Dependency for code that manages its own sessions (e.g. the provisioning worker)."""
+    return async_session_factory
+
+
 async def init_db():
-    """Create all tables. Used for initial setup with SQLite."""
+    """Create all tables directly from the models (tests only; use Alembic otherwise)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

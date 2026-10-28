@@ -1,31 +1,35 @@
 import { apiClient } from './apiClient';
-import { TokenResponse, User } from '@/types';
+import { AuthConfig, TokenResponse, User } from '@/types';
 
 export const authService = {
+  getConfig: (): Promise<AuthConfig> => apiClient.get<AuthConfig>('/auth/config'),
+
   login: async (email: string, password: string): Promise<TokenResponse> => {
     const data = await apiClient.post<TokenResponse>('/auth/login', { email, password });
-    apiClient.setTokens(data.access_token, data.refresh_token);
+    apiClient.setAccessToken(data.access_token);
     return data;
   },
 
-  register: async (payload: {
-    email: string;
-    password: string;
-    first_name: string;
-    last_name: string;
-    department?: string;
-    designation?: string;
-  }): Promise<TokenResponse> => {
-    const data = await apiClient.post<TokenResponse>('/auth/register', payload);
-    apiClient.setTokens(data.access_token, data.refresh_token);
+  /** Restore a password session from the HttpOnly refresh cookie (e.g. after a reload). */
+  restoreLocalSession: async (): Promise<boolean> => !!(await apiClient.refreshLocalSession()),
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<TokenResponse> => {
+    const data = await apiClient.post<TokenResponse>('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    apiClient.setAccessToken(data.access_token);
     return data;
   },
 
-  getCurrentUser: async (): Promise<User> => {
-    return apiClient.get<User>('/auth/me');
-  },
+  getCurrentUser: (): Promise<User> => apiClient.get<User>('/auth/me'),
 
-  logout: () => {
-    apiClient.clearTokens();
+  /** Revokes every session server-side, then forgets the in-memory token. */
+  logout: async (): Promise<void> => {
+    try {
+      await apiClient.post('/auth/logout');
+    } finally {
+      apiClient.clear();
+    }
   },
 };

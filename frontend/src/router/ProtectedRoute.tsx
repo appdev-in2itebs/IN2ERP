@@ -8,8 +8,12 @@ interface ProtectedRouteProps {
   permission?: string;
 }
 
+/**
+ * Hides screens the user cannot use. This is navigation only: every API endpoint
+ * enforces the same permissions on the server.
+ */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, permission }) => {
-  const { isAuthenticated, isLoading, hasPermission } = useAuth();
+  const { isAuthenticated, isLoading, hasPermission, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -18,6 +22,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, permis
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user?.must_change_password && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
   }
 
   if (permission && !hasPermission(permission)) {

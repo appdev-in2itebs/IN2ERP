@@ -3,6 +3,7 @@ export interface UserAppAssignmentDetail {
   application_name: string;
   app_role: string;
   status: string;
+  provisioning_status?: string;
 }
 
 export interface User {
@@ -16,6 +17,10 @@ export interface User {
   avatar_url?: string | null;
   is_active: boolean;
   is_superadmin: boolean;
+  must_change_password?: boolean;
+  entra_linked?: boolean;
+  auth_method?: 'local' | 'entra';
+  locked_until?: string | null;
   created_at: string;
   updated_at: string;
   last_login_at?: string | null;
@@ -28,7 +33,8 @@ export interface User {
 
 export interface UserCreatePayload {
   email: string;
-  password: string;
+  /** Omit to let the server generate a one-time password. */
+  password?: string;
   first_name: string;
   last_name: string;
   phone?: string;
@@ -45,6 +51,11 @@ export interface UserUpdatePayload {
   designation?: string;
   avatar_url?: string;
   is_active?: boolean;
+}
+
+/** Returned once when an admin creates a user or resets a password. */
+export interface UserWithTemporaryPassword extends User {
+  temporary_password?: string | null;
 }
 
 export interface UserListResponse {

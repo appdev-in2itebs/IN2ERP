@@ -6,10 +6,9 @@ import { ProtectedRoute } from './ProtectedRoute';
 
 // Views
 import { LoginView } from '@/views/auth/LoginView';
-import { RegisterView } from '@/views/auth/RegisterView';
+import { ChangePasswordView } from '@/views/auth/ChangePasswordView';
 import { DashboardView } from '@/views/dashboard/DashboardView';
 import { ApplicationsView } from '@/views/applications/ApplicationsView';
-import { EmployeesView } from '@/views/employees/EmployeesView';
 import { MasterSettingsView } from '@/views/admin/MasterSettingsView';
 import { RolesView } from '@/views/roles/RolesView';
 import { AssignmentsView } from '@/views/assignments/AssignmentsView';
@@ -21,7 +20,14 @@ export const AppRouter: React.FC = () => {
       {/* Public Auth Routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginView />} />
-        <Route path="/register" element={<RegisterView />} />
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePasswordView />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Protected ERP Console Routes */}
@@ -36,7 +42,7 @@ export const AppRouter: React.FC = () => {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission="employees.read">
               <MasterSettingsView />
             </ProtectedRoute>
           }
@@ -44,7 +50,7 @@ export const AppRouter: React.FC = () => {
         <Route
           path="/employees"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute permission="employees.read">
               <MasterSettingsView />
             </ProtectedRoute>
           }

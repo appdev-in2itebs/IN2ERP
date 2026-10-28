@@ -16,7 +16,9 @@ class AuditLogResponse(BaseModel):
     resource_id: str | None = None
     details: str | None = None
     ip_address: str | None = None
+    user_agent: str | None = None
     status: str
+    correlation_id: str | None = None
 
     model_config = {"from_attributes": True}
 

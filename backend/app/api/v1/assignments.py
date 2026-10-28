@@ -1,46 +1,96 @@
 """
-In2IT ERP - Assignments API Routes
-Manage application-to-user assignments.
+In2IT ERP - Access & Provisioning API Routes
+Grant and revoke employees' application roles and follow their provisioning status.
+
+Only ERP administrators (assignments.* permissions, admin-capable session) can change
+access. Changes are explicit: an omitted role is never revoked implicitly.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.dependencies import get_current_user, require_permission
-from app.db.database import get_db
+from app.api.v1.dependencies import Principal, effective_permissions, get_principal, require_permission
+from app.db.database import get_db, get_session_factory
+from app.models.provisioning import ProvisioningJob
 from app.models.user import User
 from app.repositories.application_repository import ApplicationRepository
-from app.repositories.user_repository import UserRepository
 from app.schemas.application import (
-    AssignmentCreate, AssignmentResponse, AssignmentUpdate,
-    UserAssignmentSyncRequest,
+    AccessChangeRequest, AccessChangeResponse, AssignmentCreate, AssignmentResponse,
+    AssignmentUpdate, ManualConfirmRequest, PlannedChangeResponse, ProvisioningJobResponse,
 )
-from app.schemas.user import UserResponse
-from app.services.assignment_service import AssignmentService
+from app.services.assignment_service import AccessService, to_response
+from app.services.audit_service import commit_audit
+from app.services.authorization_service import ensure_can_manage_user
+from app.services.provisioning_service import expire_assignments, process_due_jobs
 
-router = APIRouter(prefix="/assignments", tags=["Assignments"])
+router = APIRouter(prefix="/assignments", tags=["Access"])
+provisioning_router = APIRouter(prefix="/provisioning", tags=["Provisioning"])
+
+
+async def _get_assignment(db: AsyncSession, assignment_id: str):
+    assignment = await ApplicationRepository(db).get_assignment_by_id(assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return assignment
+
+
+async def _require(db: AsyncSession, principal: Principal, codes: set[str]) -> None:
+    missing = codes - await effective_permissions(db, principal)
+    if missing:
+        await commit_audit(
+            db, action="permission_denied", resource_type="authorization",
+            actor=principal.user, status="failure",
+            details={"permissions": sorted(missing), "path": "assignments/changes"},
+        )
+        raise HTTPException(status_code=403, detail=f"Permission required: {', '.join(sorted(missing))}")
 
 
 @router.get("/user/{user_id}", response_model=list[AssignmentResponse])
 async def get_user_assignments(
     user_id: str,
+    include_history: bool = Query(False, description="Include revoked and expired roles"),
     current_user: User = Depends(require_permission("assignments.read")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all application assignments for a user."""
-    repo = ApplicationRepository(db)
-    assignments = await repo.get_user_assignments(user_id)
-    return [
-        AssignmentResponse(
-            id=a.id, user_id=a.user_id, application_id=a.application_id,
-            app_role=a.app_role or "Member",
-            status=a.status, assigned_at=a.assigned_at,
-            assigned_by=a.assigned_by, expires_at=a.expires_at,
-            notes=a.notes,
-            application_name=a.application.name if a.application else None,
-        )
-        for a in assignments
-    ]
+    """An employee's application roles with provisioning status."""
+    assignments = await ApplicationRepository(db).get_user_assignments(
+        user_id, include_revoked=include_history
+    )
+    return [to_response(a) for a in assignments]
+
+
+@router.post("/user/{user_id}/changes", response_model=AccessChangeResponse)
+async def change_user_access(
+    user_id: str,
+    data: AccessChangeRequest,
+    principal: Principal = Depends(get_principal),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Grant and/or revoke specific application roles for one employee.
+    With `dry_run: true` the request is fully validated and the planned changes are
+    returned for review without changing anything.
+    """
+    needed = {"assignments.read"}
+    if data.grants:
+        needed.add("assignments.create")
+    if data.revokes:
+        needed.add("assignments.delete")
+    await _require(db, principal, needed)
+
+    service = AccessService(db)
+    plan = await service.plan(
+        principal.user, user_id, [g.model_dump() for g in data.grants], data.revokes
+    )
+    changes = [PlannedChangeResponse(**c.as_dict()) for c in plan.changes]
+    if data.dry_run:
+        return AccessChangeResponse(dry_run=True, changes=changes)
+
+    touched = await service.apply(plan, principal.user)
+    return AccessChangeResponse(
+        dry_run=False, changes=changes, assignments=[to_response(a) for a in touched]
+    )
 
 
 @router.post("", response_model=AssignmentResponse, status_code=201)
@@ -49,9 +99,12 @@ async def create_assignment(
     current_user: User = Depends(require_permission("assignments.create")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Assign an application to a user."""
-    service = AssignmentService(db)
-    return await service.create_assignment(data, assigned_by=current_user.id)
+    """Grant one application role to an employee."""
+    assignment = await AccessService(db).grant_one(
+        current_user, data.user_id, data.application_id, data.app_role_id,
+        expires_at=data.expires_at, notes=data.notes,
+    )
+    return to_response(assignment)
 
 
 @router.patch("/{assignment_id}", response_model=AssignmentResponse)
@@ -60,52 +113,74 @@ async def update_assignment(
     current_user: User = Depends(require_permission("assignments.update")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update an assignment (status, notes, expiry)."""
-    service = AssignmentService(db)
-    return await service.update_assignment(assignment_id, data, updated_by=current_user.id)
+    """Change an assignment's notes or expiry."""
+    assignment = await _get_assignment(db, assignment_id)
+    updated = await AccessService(db).update_details(
+        assignment, current_user, data.model_dump(exclude_unset=True)
+    )
+    return to_response(updated)
 
 
-@router.delete("/{assignment_id}", status_code=204)
-async def delete_assignment(
+@router.delete("/{assignment_id}", response_model=AssignmentResponse)
+async def revoke_assignment(
     assignment_id: str,
     current_user: User = Depends(require_permission("assignments.delete")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove an application assignment."""
-    service = AssignmentService(db)
-    await service.delete_assignment(assignment_id, deleted_by=current_user.id)
+    """Revoke an application role. The response shows the pending revocation status."""
+    assignment = await _get_assignment(db, assignment_id)
+    ensure_can_manage_user(current_user, assignment.user)
+    return to_response(await AccessService(db).revoke(assignment, current_user, reason="admin"))
 
 
-@router.put("/user/{user_id}/sync", response_model=UserResponse)
-async def sync_user_assignments(
-    user_id: str,
-    data: UserAssignmentSyncRequest,
+@router.post("/{assignment_id}/retry", response_model=AssignmentResponse)
+async def retry_assignment(
+    assignment_id: str,
     current_user: User = Depends(require_permission("assignments.update")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Sync all application assignments and metadata for a user (Odoo ERP Access Rights)."""
-    user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(user_id)
-    if not user:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="User not found")
+    """Queue another provisioning attempt for a failed or unreconciled change."""
+    assignment = await _get_assignment(db, assignment_id)
+    return to_response(await AccessService(db).retry(assignment, current_user))
 
-    update_data = {}
-    if data.department is not None:
-        update_data["department"] = data.department
-    if data.designation is not None:
-        update_data["designation"] = data.designation
-    if data.phone is not None:
-        update_data["phone"] = data.phone
-    if data.is_active is not None:
-        update_data["is_active"] = data.is_active
 
-    if update_data:
-        await user_repo.update(user, update_data)
+@router.post("/{assignment_id}/confirm", response_model=AssignmentResponse)
+async def confirm_assignment(
+    assignment_id: str, data: ManualConfirmRequest,
+    current_user: User = Depends(require_permission("assignments.update")),
+    db: AsyncSession = Depends(get_db),
+):
+    """For manually managed applications: confirm the change was applied in the target app."""
+    assignment = await _get_assignment(db, assignment_id)
+    return to_response(await AccessService(db).confirm_manual(assignment, current_user, data.note))
 
-    service = AssignmentService(db)
-    assignments_dicts = [a.model_dump() for a in data.assignments]
-    await service.sync_user_assignments(user_id, assignments_dicts, assigned_by=current_user.id)
 
-    updated_user = await user_repo.get_by_id(user_id)
-    return UserResponse.model_validate(updated_user)
+# ── Provisioning queue ──
+
+@provisioning_router.get("/jobs", response_model=list[ProvisioningJobResponse])
+async def list_jobs(
+    status: str | None = None,
+    assignment_id: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    current_user: User = Depends(require_permission("assignments.read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Recent provisioning jobs, newest first."""
+    query = select(ProvisioningJob).order_by(ProvisioningJob.created_at.desc()).limit(limit)
+    if status:
+        query = query.where(ProvisioningJob.status == status)
+    if assignment_id:
+        query = query.where(ProvisioningJob.assignment_id == assignment_id)
+    jobs = (await db.execute(query)).scalars().all()
+    return [ProvisioningJobResponse.model_validate(j) for j in jobs]
+
+
+@provisioning_router.post("/run")
+async def run_provisioning_now(
+    current_user: User = Depends(require_permission("assignments.update")),
+    session_factory=Depends(get_session_factory),
+):
+    """Run the expiry sweep and deliver due jobs immediately (normally done by the worker)."""
+    expired = await expire_assignments(session_factory)
+    results = await process_due_jobs(session_factory)
+    return {"expired": expired, "jobs": results}
