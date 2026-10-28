@@ -1,8 +1,10 @@
-# In2ERP on a single Azure VM. Copied to /opt/in2erp by the deploy workflow.
+# In2ERP on an Azure VM. Copied to /opt/in2erp by the deploy workflow.
 # Settings and secrets live in /opt/in2erp/.env on the VM (created by setup-vm.sh, never committed).
 # IMAGE_PREFIX and IMAGE_TAG are supplied by deploy.sh.
 #
-#   internet -> caddy (80/443, automatic HTTPS) -> frontend (nginx, SPA + /api proxy) -> backend -> postgres
+#   internet -> host nginx (443, Let's Encrypt; infrastructure/vm/nginx-site.conf)
+#            -> frontend (127.0.0.1:HTTP_PORT; SPA + /api proxy) -> backend -> postgres
+# Only the frontend is published, and only on localhost, so the VM can host other sites alongside.
 name: in2erp
 
 services:
@@ -44,27 +46,11 @@ services:
     environment:
       API_UPSTREAM: http://backend:8000
       API_HOST: backend
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-8091}:8080"
     depends_on:
       - backend
     restart: unless-stopped
 
-  caddy:
-    image: caddy:2.8-alpine
-    environment:
-      SITE_ADDRESS: ${SITE_ADDRESS:?set in .env}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      - frontend
-    restart: unless-stopped
-
 volumes:
   postgres-data:
-  caddy-data:
-  caddy-config:

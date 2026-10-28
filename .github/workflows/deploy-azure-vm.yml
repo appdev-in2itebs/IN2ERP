@@ -118,7 +118,7 @@ jobs:
           VM: ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}
         run: |
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            infrastructure/vm/docker-compose.prod.yml infrastructure/vm/Caddyfile infrastructure/vm/deploy.sh \
+            infrastructure/vm/docker-compose.prod.yml infrastructure/vm/deploy.sh \
             "$VM:/opt/in2erp/"
       - name: Deploy
         env:

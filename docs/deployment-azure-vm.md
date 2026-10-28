@@ -7,8 +7,9 @@ push to main ─► CI (tests, type-check, build, audits, image builds)
 ```
 
 On the VM everything runs in Docker:
-`Caddy (80/443, automatic HTTPS) → frontend (nginx: SPA + /api proxy) → backend (FastAPI) → PostgreSQL`.
-Only ports 80/443 are exposed; the database and API are reachable only inside Docker.
+`host nginx (443, Let's Encrypt) → frontend (127.0.0.1:8091; SPA + /api proxy) → backend (FastAPI) → PostgreSQL`.
+The app publishes nothing publicly itself (frontend on localhost only; database and API only inside Docker),
+so it can share a VM with other sites behind the same nginx.
 
 | File | Purpose |
 |---|---|
@@ -17,7 +18,7 @@ Only ports 80/443 are exposed; the database and API are reachable only inside Do
 | `infrastructure/vm/setup-vm.sh` | One-time VM preparation (Docker, `/opt/in2erp`, generated secrets) |
 | `infrastructure/vm/docker-compose.prod.yml` | Production stack on the VM |
 | `infrastructure/vm/deploy.sh` | Runs on the VM for each deployment |
-| `infrastructure/vm/Caddyfile` | HTTPS reverse proxy |
+| `infrastructure/vm/nginx-site.conf` | Host nginx site (HTTPS) for the app |
 
 ## 1. Create the VM (once)
 Azure portal → **Virtual machines → Create**:
@@ -26,7 +27,7 @@ Azure portal → **Virtual machines → Create**:
 - Inbound ports: **SSH (22)**, **HTTP (80)**, **HTTPS (443)**. Restrict SSH to your office IP if possible
   (GitHub-hosted runners connect from changing addresses; see *Hardening* below).
 - After creation: VM → **Overview → DNS name → Configure**, set a label, e.g. `in2erp`. This gives a free
-  name such as `in2erp.centralindia.cloudapp.azure.com`, which Caddy uses for a free HTTPS certificate.
+  name such as `in2erp.centralindia.cloudapp.azure.com` for a free Let's Encrypt certificate.
   (Or point your own domain's A record at the VM's public IP.)
 
 ## 2. Prepare the VM (once)
@@ -35,8 +36,15 @@ ssh azureuser@<vm-dns-name>
 git clone https://github.com/appdev-in2itebs/IN2ERP.git /tmp/in2erp
 sudo bash /tmp/in2erp/infrastructure/vm/setup-vm.sh deploy https://<vm-dns-name>
 ```
-This installs Docker, creates the `deploy` user and `/opt/in2erp`, and writes `/opt/in2erp/.env` with
-random database and signing secrets. The secrets never leave the VM and are never printed.
+This installs Docker if missing, creates the `deploy` user and `/opt/in2erp`, and writes `/opt/in2erp/.env` with
+random database and signing secrets. Then publish the site through the host nginx
+(`sudo apt install nginx certbot` if they are not there yet):
+```bash
+sudo certbot certonly --webroot -w /var/www/html -d <vm-dns-name>
+sed 's/in2erp.example.com/<vm-dns-name>/g' /tmp/in2erp/infrastructure/vm/nginx-site.conf | sudo tee /etc/nginx/sites-available/in2erp
+sudo ln -s /etc/nginx/sites-available/in2erp /etc/nginx/sites-enabled/in2erp
+sudo nginx -t && sudo systemctl reload nginx
+``` The secrets never leave the VM and are never printed.
 Optional settings (Entra ID, `LOCAL_AUTH_MODE`) are commented in that file.
 
 Create an SSH key used only by GitHub Actions and allow it for the `deploy` user:
@@ -109,3 +117,7 @@ Containers restart automatically after a VM reboot (`restart: unless-stopped`).
   SSH from anywhere with key-only login (the default here), or use a self-hosted runner on the VM.
 - Enable Azure Backup for the VM disk and copy `/opt/in2erp/backups` off the VM.
 - Once Entra ID is configured, set `LOCAL_AUTH_MODE=break_glass_only` in `/opt/in2erp/.env`.
+
+## Current installation
+- VM `57.159.30.28` (shared with other sites behind the host nginx).
+- URL: https://in2erp.57-159-30-28.sslip.io , app in `/opt/in2erp`, frontend on `127.0.0.1:8091`.
