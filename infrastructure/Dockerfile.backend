@@ -22,7 +22,9 @@ COPY alembic alembic/
 COPY alembic.ini .
 RUN mkdir -p /app/data && chown -R appuser /app/data
 
+# PYTHONPATH lets alembic and `python -m app.cli` import the app, not only uvicorn.
 ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
     PORT=8000
 USER appuser
 EXPOSE 8000

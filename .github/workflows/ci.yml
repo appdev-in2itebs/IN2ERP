@@ -62,6 +62,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image
-        run: docker build -f infrastructure/Dockerfile.backend backend
+        run: docker build -t in2erp-backend:ci -f infrastructure/Dockerfile.backend backend
+      - name: Migrations run inside the backend image
+        run: docker run --rm -e DATABASE_URL=sqlite+aiosqlite:////tmp/ci.db in2erp-backend:ci alembic upgrade head
       - name: Build frontend image
         run: docker build -f infrastructure/Dockerfile.frontend .
